@@ -1,0 +1,525 @@
+.lista-container {
+  padding: 20px;
+  max-width: 1400px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.lista-header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.lista-header h1 {
+  color: #2c3e50;
+  margin-bottom: 8px;
+  font-size: 2.2rem;
+}
+
+.lista-header p {
+  color: #7f8c8d;
+  font-size: 1.1rem;
+}
+
+.loading {
+  text-align: center;
+  padding: 40px;
+  font-size: 1.2rem;
+  color: #3498db;
+}
+
+.alert {
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.alert-error {
+  background-color: #f8d7da;
+  border: 1px solid #f5c6cb;
+  color: #721c24;
+}
+
+.btn-reintentar {
+  background-color: #dc3545;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.btn-reintentar:hover {
+  background-color: #c82333;
+}
+
+.filtros-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+
+.filtros {
+  display: flex;
+  gap: 10px;
+  flex-wrap: nowrap; /* Evita que se apilen */
+}
+
+.filtro-btn {
+  padding: 10px 20px;
+  border: 2px solid #e9ecef;
+  background: white;
+  border-radius: 25px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-weight: 500;
+  white-space: nowrap; /* Evita que el texto se rompa */
+}
+
+.filtro-btn.active {
+  background-color: #3498db;
+  color: white;
+  border-color: #3498db;
+}
+
+.filtro-btn:hover:not(.active) {
+  border-color: #3498db;
+  color: #3498db;
+}
+
+.contador {
+  display: flex;
+  gap: 15px;
+  font-size: 0.9rem;
+  flex-wrap: nowrap; /* Esto también para los contadores */
+}
+
+.contador span {
+  padding: 5px 12px;
+  border-radius: 15px;
+  background-color: #f8f9fa;
+  border: 1px solid #e9ecef;
+  white-space: nowrap;
+}
+
+.table-container {
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+
+.prestamos-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.prestamos-table th {
+  background-color: #34495e;
+  color: white;
+  padding: 15px 12px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.prestamos-table td {
+  padding: 12px;
+  border-bottom: 1px solid #ecf0f1;
+}
+
+.prestamos-table tbody tr:hover {
+  background-color: #f8f9fa;
+}
+
+.prestatario-cell {
+  font-weight: 500;
+}
+
+.monto, .monto-total, .saldo {
+  font-family: 'Courier New', monospace;
+  font-weight: 600;
+  text-align: right;
+}
+
+.monto {
+  color: #2c3e50;
+}
+
+.monto-total {
+  color: #27ae60;
+}
+
+.saldo.pendiente {
+  color: #e74c3c;
+  font-weight: 700;
+}
+
+.saldo.pagado {
+  color: #27ae60;
+}
+
+.interes {
+  text-align: center;
+  color: #e67e22;
+  font-weight: 600;
+}
+
+.estado-badge {
+  padding: 6px 12px;
+  border-radius: 20px;
+  color: white;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.periodo {
+  text-align: center;
+  color: #7f8c8d;
+  font-size: 0.9rem;
+}
+
+.no-data {
+  text-align: center;
+  padding: 40px !important;
+  color: #7f8c8d;
+  font-style: italic;
+}
+
+.table-footer {
+  display: flex;
+  justify-content: space-between;
+  padding: 20px;
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  font-size: 1.1rem;
+}
+
+.resumen-total {
+  color: #2c3e50;
+}
+
+.resumen-saldo {
+  color: #e74c3c;
+  font-weight: 600;
+}
+
+/* Estilos para gráficos de progreso */
+.progreso-cell {
+  min-width: 120px;
+}
+
+.progreso-text {
+  font-size: 11px;
+  color: #6c757d;
+  text-align: center;
+  margin-top: 4px;
+}
+
+/* Fila expandida */
+.detalle-row {
+  background-color: #f8f9fa;
+  border-bottom: 2px solid #dee2e6;
+}
+
+.detalle-content {
+  padding: 20px;
+  background: white;
+  margin: 10px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.detalle-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.detalle-header h4 {
+  margin: 0;
+  color: #343a40;
+}
+
+.periodo-info {
+  background: #e9ecef;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #6c757d;
+}
+
+.detalle-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 30px;
+}
+
+.progreso-completo {
+  padding: 15px;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+.progreso-stats {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  margin-top: 15px;
+}
+
+.stat-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: white;
+  border-radius: 6px;
+  border-left: 4px solid #e9ecef;
+}
+
+.stat-item .stat-label {
+  font-weight: 500;
+  color: #6c757d;
+}
+
+.stat-item .stat-value {
+  font-weight: 600;
+}
+
+.stat-value.success { color: #28a745; }
+.stat-value.warning { color: #ffc107; }
+.stat-value.info { color: #17a2b8; }
+
+.historial-pagos {
+  padding: 15px;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+.historial-pagos h5 {
+  margin: 0 0 15px 0;
+  color: #343a40;
+}
+
+.pagos-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.pago-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px;
+  background: white;
+  border-radius: 6px;
+  border-left: 4px solid #28a745;
+  font-size: 14px;
+}
+
+.pago-fecha {
+  color: #6c757d;
+  font-weight: 500;
+}
+
+.pago-monto {
+  font-weight: 600;
+  color: #28a745;
+}
+
+.pago-saldo {
+  color: #6c757d;
+  font-size: 12px;
+}
+
+.no-pagos, .loading-pagos {
+  text-align: center;
+  color: #6c757d;
+  font-style: italic;
+  padding: 20px;
+}
+
+/* Botón de detalles */
+.btn-detalle {
+  background: #6c757d;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.3s ease;
+}
+
+.btn-detalle:hover {
+  background: #5a6268;
+  transform: translateY(-1px);
+}
+
+/* Estados de fila */
+.prestamo-row.expanded {
+  background-color: #f8f9fa;
+  border-left: 4px solid #007bff;
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
+  .table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  .prestamos-table {
+    min-width: 1000px;
+    width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .lista-container { 
+    padding: 12px; 
+    width: 100%;
+    max-width: 100%;
+  }
+  
+  .lista-header h1 { font-size: 1.6rem; }
+  
+  .filtros-container {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  
+  .filtros {
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  
+  .filtro-btn {
+    padding: 8px 16px;
+    font-size: 0.9rem;
+  }
+  
+  .contador {
+    text-align: center;
+  }
+  
+  .table-container { 
+    overflow-x: auto; 
+    -webkit-overflow-scrolling: touch;
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+  }
+  
+  .prestamos-table {
+    min-width: 800px;
+    width: 100%;
+    table-layout: auto;
+    border-radius: 10px;
+    box-shadow: 0 6px 16px rgba(0,0,0,0.08);
+  }
+  
+  .prestamos-table th,
+  .prestamos-table td {
+    padding: 8px 6px;
+    font-size: 0.85rem;
+    white-space: nowrap;
+  }
+  
+  .prestamos-table th { 
+    padding: 10px 8px; 
+    font-size: 0.8rem; 
+    font-weight: 600;
+  }
+  
+  .prestamos-table td { 
+    padding: 8px 6px; 
+  }
+  
+  /* Mantener columnas con scroll horizontal en móvil */
+  .table-footer {
+    flex-direction: column;
+    gap: 10px;
+    text-align: center;
+    padding: 12px;
+  }
+}
+
+/* Para pantallas muy pequeñas donde sí necesitamos apilar */
+@media (max-width: 480px) {
+  .lista-container {
+    padding: 8px;
+    width: 100%;
+    max-width: 100%;
+  }
+  
+  .filtros-container {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  
+  .filtros {
+    justify-content: center;
+    overflow-x: visible;
+  }
+  
+  .contador {
+    justify-content: center;
+    overflow-x: visible;
+  }
+  
+  .table-container {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  .prestamos-table {
+    min-width: 700px;
+    font-size: 0.8rem;
+  }
+  
+  .prestamos-table th,
+  .prestamos-table td {
+    padding: 6px 4px;
+    font-size: 0.75rem;
+  }
+  
+  .detalle-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  
+  .detalle-header {
+    flex-direction: column;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  
+  .pago-item {
+    flex-direction: column;
+    gap: 5px;
+    align-items: flex-start;
+  }
+}

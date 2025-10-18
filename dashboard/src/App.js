@@ -1,0 +1,430 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { BrowserRouter as Router, Route, Routes, Navigate, useLocation } from 'react-router-dom';
+import Sidebar from './components/Sidebar';
+import Header from './components/Header';
+import Inicio from './components/inicio';
+import RegistrarPrestamo from './components/RegistrarPrestamos';
+import ListaPrestamos from './components/ListaPrestamos';
+import Prestatarios from './components/prestatarios';
+import GestionPrestamos from './components/GestionarPrestamos';
+import Archivados from './components/archivados';
+import ImportarPrestatarios from './components/ImportarPrestatarios';
+import ExportarPrestatarios from './components/ExportarPrestatarios';
+import Login from './components/Login';
+import Configuracion from './components/Configuracion';
+import { SyncProvider } from './context/SyncProvider';
+import { NotificationProvider } from './context/NotificationProvider';
+import axios from 'axios';
+import { 
+  calcularAlertasVencimientos, 
+  obtenerTotalAlertas, 
+  filtrarPrestamosActivos 
+} from './utils/alertas';
+import './App.css';
+
+const HeaderWithData = ({ alertasCount, onAlertasClick }) => {
+  const location = useLocation();
+  
+  const getSectionName = () => {
+    const path = location.pathname;
+    const currentSection = path.replace('/', '') || 'inicio';
+    return currentSection;
+  };
+
+  return (
+    <Header 
+      section={getSectionName()}
+      userName="Administrador"
+      alertasCount={alertasCount}
+      onAlertasClick={onAlertasClick}
+    />
+  );
+};
+
+const Logout = () => {
+  useEffect(() => {
+    localStorage.removeItem('isAuthenticated');
+    localStorage.removeItem('user');
+    window.location.href = '/login';
+  }, []);
+
+  return null;
+};
+
+const AppRoutes = ({ isAuthenticated, globalAlertas, actualizarAlertasGlobales, manejarClickAlertas, onAuthSuccess }) => {
+  return (
+    <Routes>
+      <Route 
+        path="/login" 
+        element={
+          isAuthenticated ? <Navigate to="/inicio" replace /> : <Login onLoginSuccess={onAuthSuccess} />
+        }
+      />
+      <Route 
+        path="/inicio" 
+        element={
+          isAuthenticated ? 
+          <Inicio 
+            onAlertasChange={actualizarAlertasGlobales}
+          /> : 
+          <Navigate to="/login" replace />
+        } 
+      />
+      <Route 
+        path="/registrar-prestamo" 
+        element={isAuthenticated ? <RegistrarPrestamo /> : <Navigate to="/login" replace />} 
+      />
+      <Route 
+        path="/lista-prestamos" 
+        element={
+          isAuthenticated ? 
+          <ListaPrestamos 
+            onAlertasChange={actualizarAlertasGlobales}
+          /> : 
+          <Navigate to="/login" replace />
+        } 
+      />
+      <Route 
+        path="/gestion-prestamos" 
+        element={isAuthenticated ? <GestionPrestamos /> : <Navigate to="/login" replace />} 
+      />
+      <Route 
+        path="/importar-prestatarios" 
+        element={isAuthenticated ? <ImportarPrestatarios /> : <Navigate to="/login" replace />} 
+      />
+      <Route 
+        path="/exportar-prestatarios" 
+        element={isAuthenticated ? <ExportarPrestatarios /> : <Navigate to="/login" replace />} 
+      />
+      <Route 
+        path="/prestatarios" 
+        element={isAuthenticated ? <Prestatarios /> : <Navigate to="/login" replace />} 
+      />
+      <Route 
+        path="/archivados" 
+        element={isAuthenticated ? <Archivados /> : <Navigate to="/login" replace />} 
+      />
+      <Route 
+        path="/configuracion" 
+        element={isAuthenticated ? <Configuracion /> : <Navigate to="/login" replace />} 
+      />
+      <Route 
+        path="/logout" 
+        element={<Logout />} 
+      />
+      <Route 
+        path="/" 
+        element={<Navigate to={isAuthenticated ? "/inicio" : "/login"} replace />} 
+      />
+      <Route 
+        path="*" 
+        element={<Navigate to={isAuthenticated ? "/inicio" : "/login"} replace />} 
+      />
+    </Routes>
+  );
+};
+
+const App = () => {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [globalAlertas, setGlobalAlertas] = useState(0);
+  const [loadingAlertas, setLoadingAlertas] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  
+  // WebSocket states
+  const wsRef = useRef(null);
+  const [wsConnected, setWsConnected] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [showNotification, setShowNotification] = useState(false);
+  const [currentNotification, setCurrentNotification] = useState(null);
+
+  // Verificar autenticación al cargar
+  useEffect(() => {
+    const checkAuth = () => {
+      const auth = localStorage.getItem('isAuthenticated');
+      const userStr = localStorage.getItem('user');
+      let user = null;
+      try {
+        user = userStr ? JSON.parse(userStr) : null;
+      } catch (e) {
+        user = null;
+      }
+      const esAutenticado = auth === 'true' && !!user && !!user.usuario;
+
+      console.log('Auth check:', { auth, user, esAutenticado });
+      setIsAuthenticated(esAutenticado);
+      
+      if (esAutenticado) {
+        cargarAlertasGlobales();
+        initWebSocket();
+      }
+    };
+
+    checkAuth();
+    setMounted(true);
+
+    // Listener para detectar cambios en localStorage (cuando hace login desde otra pestaña)
+    const handleStorageChange = () => {
+      console.log('Storage cambió, verificando auth...');
+      checkAuth();
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      if (wsRef.current) {
+        wsRef.current.close();
+      }
+    };
+  }, []);
+
+  const initWebSocket = () => {
+    if (!isAuthenticated) return;
+    
+    try {
+      wsRef.current = new WebSocket('ws://192.168.18.22:8081');
+      
+      wsRef.current.onopen = () => {
+        console.log('Dashboard WebSocket conectado');
+        setWsConnected(true);
+        
+        // Registrar como dashboard
+        const registerMessage = {
+          type: 'register_dashboard',
+          clientType: 'dashboard',
+          timestamp: new Date().toISOString()
+        };
+        wsRef.current.send(JSON.stringify(registerMessage));
+      };
+      
+      wsRef.current.onmessage = (event) => {
+        try {
+          const message = JSON.parse(event.data);
+          console.log('Mensaje WebSocket recibido:', message);
+          
+          if (message.type === 'payment_notification') {
+            handlePaymentNotification(message.data);
+          }
+        } catch (error) {
+          console.error('Error procesando mensaje WebSocket:', error);
+        }
+      };
+      
+      wsRef.current.onclose = () => {
+        console.log('Dashboard WebSocket desconectado');
+        setWsConnected(false);
+        
+        // Intentar reconectar después de 3 segundos si está autenticado
+        if (isAuthenticated) {
+          setTimeout(() => {
+            if (!wsRef.current || wsRef.current.readyState === WebSocket.CLOSED) {
+              initWebSocket();
+            }
+          }, 3000);
+        }
+      };
+      
+      wsRef.current.onerror = (error) => {
+        console.error('Error WebSocket Dashboard:', error);
+        setWsConnected(false);
+      };
+      
+    } catch (error) {
+      console.error('Error inicializando WebSocket Dashboard:', error);
+      setWsConnected(false);
+    }
+  };
+
+  const handlePaymentNotification = (paymentData) => {
+    const notification = {
+      id: Date.now(),
+      type: 'payment',
+      title: '💰 Nuevo Pago Recibido',
+      message: `${paymentData.prestatario.nombre} (DNI: ${paymentData.prestatario.dni}) pagó S/. ${paymentData.monto.toFixed(2)}`,
+      timestamp: new Date(),
+      data: paymentData
+    };
+    
+    // Agregar a la lista de notificaciones
+    setNotifications(prev => [notification, ...prev.slice(0, 9)]); // Mantener solo las últimas 10
+    
+    // Mostrar notificación emergente
+    setCurrentNotification(notification);
+    setShowNotification(true);
+    
+    // Reproducir sonido de notificación
+    playNotificationSound();
+    
+    // Auto-ocultar después de 5 segundos
+    setTimeout(() => {
+      setShowNotification(false);
+    }, 5000);
+    
+    // Recargar alertas para actualizar el dashboard
+    setTimeout(() => {
+      cargarAlertasGlobales();
+    }, 1000);
+  };
+
+  const playNotificationSound = () => {
+    try {
+      // Crear un sonido simple usando Web Audio API
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
+      oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+      oscillator.frequency.setValueAtTime(600, audioContext.currentTime + 0.1);
+      oscillator.frequency.setValueAtTime(800, audioContext.currentTime + 0.2);
+      
+      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+      
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.3);
+    } catch (error) {
+      console.log('No se pudo reproducir el sonido de notificación:', error);
+    }
+  };
+
+  const dismissNotification = () => {
+    setShowNotification(false);
+  };
+
+  const cargarAlertasGlobales = async () => {
+    setLoadingAlertas(true);
+    try {
+      const response = await axios.get('http://192.168.18.22:8080/api_postgres.php?action=prestamos');
+      const prestamos = response.data;
+      
+      const prestamosActivos = filtrarPrestamosActivos(prestamos);
+      const alertasCalculadas = calcularAlertasVencimientos(prestamosActivos);
+      const totalAlertas = obtenerTotalAlertas(alertasCalculadas);
+      
+      setGlobalAlertas(totalAlertas);
+      localStorage.setItem('ultimasAlertas', totalAlertas.toString());
+      
+    } catch (error) {
+      console.error('Error cargando alertas globales:', error);
+      setGlobalAlertas(0);
+    } finally {
+      setLoadingAlertas(false);
+    }
+  };
+
+  // Sincronización de alertas cada 10 segundos
+  useEffect(() => {
+    if (!isAuthenticated || !mounted) return;
+
+    cargarAlertasGlobales();
+    
+    const interval = setInterval(() => {
+      cargarAlertasGlobales();
+    }, 10000);
+    
+    return () => clearInterval(interval);
+  }, [isAuthenticated, mounted]);
+
+  const manejarClickAlertas = () => {
+    window.location.href = '/lista-prestamos';
+  };
+
+  const actualizarAlertasGlobales = (nuevoTotal) => {
+    setGlobalAlertas(nuevoTotal);
+  };
+
+  if (!mounted) {
+    return <div>Cargando...</div>;
+  }
+
+  return (
+    <NotificationProvider>
+      <SyncProvider>
+        <Router>
+          <div className="base-dashboard-container">
+            {isAuthenticated && <Sidebar />}
+            {/* Overlay para móvil cuando el sidebar está abierto */}
+            {isAuthenticated && (
+              <div 
+                className="mobile-overlay" 
+                onClick={() => {
+                  document.body.classList.remove('sidebar-open');
+                  window.dispatchEvent(new CustomEvent('sidebar-open-change', { detail: false }));
+                }}
+              />
+            )}
+            {/* Overlay para escritorio cuando el sidebar está abierto */}
+            {isAuthenticated && (
+              <div 
+                className="desktop-overlay" 
+                onClick={() => {
+                  document.body.classList.remove('sidebar-open');
+                  window.dispatchEvent(new CustomEvent('sidebar-open-change', { detail: false }));
+                }}
+              />
+            )}
+            
+            {/* Notificación emergente de pagos */}
+            {showNotification && currentNotification && (
+              <div className="payment-notification-overlay">
+                <div className="payment-notification">
+                  <div className="notification-header">
+                    <span className="notification-title">{currentNotification.title}</span>
+                    <button 
+                      className="notification-close"
+                      onClick={dismissNotification}
+                    >
+                      ×
+                    </button>
+                  </div>
+                  <div className="notification-content">
+                    <p className="notification-message">{currentNotification.message}</p>
+                    <p className="notification-time">
+                      {currentNotification.timestamp.toLocaleTimeString('es-PE')}
+                    </p>
+                    {wsConnected && (
+                      <div className="notification-status">
+                        <span className="status-indicator connected"></span>
+                        <span className="status-text">Sincronizado en tiempo real</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {/* Indicador de conexión WebSocket */}
+            {isAuthenticated && (
+              <div className={`websocket-status ${wsConnected ? 'connected' : 'disconnected'}`}>
+                <span className="status-dot"></span>
+                <span className="status-label">
+                  {wsConnected ? 'Conectado' : 'Desconectado'}
+                </span>
+              </div>
+            )}
+            
+            <main className="base-main-content">
+              {isAuthenticated && (
+                <HeaderWithData 
+                  alertasCount={globalAlertas}
+                  onAlertasClick={manejarClickAlertas}
+                />
+              )}
+              <AppRoutes 
+                isAuthenticated={isAuthenticated}
+                globalAlertas={globalAlertas}
+                actualizarAlertasGlobales={actualizarAlertasGlobales}
+                manejarClickAlertas={manejarClickAlertas}
+                onAuthSuccess={() => setIsAuthenticated(true)}
+              />
+            </main>
+          </div>
+        </Router>
+      </SyncProvider>
+    </NotificationProvider>
+  );
+};
+
+export default App;

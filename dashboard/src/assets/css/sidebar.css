@@ -1,0 +1,6 @@
+/* Sidebar desktop-specific overrides - ahora como overlay */
+@media (min-width: 769px) {
+  .base-sidebar {
+    /* Las reglas están ahora en App.css para mejor control */
+  }
+}
