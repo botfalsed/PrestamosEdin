@@ -1,5 +1,18 @@
 {
+    "name": "prestamos/backend",
+    "description": "Backend para Sistema de Préstamos con WebSocket",
+    "type": "project",
     "require": {
-        "phpoffice/phpspreadsheet": "1.24"
-    }
+        "php": ">=7.4",
+        "phpoffice/phpspreadsheet": "1.24",
+        "ratchet/pawl": "^0.4",
+        "ratchet/rfc6455": "^0.3"
+    },
+    "autoload": {
+        "psr-4": {
+            "Prestamos\\": "src/"
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
 }

@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Insertar Datos de Prueba</title>
+</head>
+<body>
+    <h1>Insertando Datos de Prueba...</h1>
+    <div id="status"></div>
+
+    <script>
+        const API_URL = 'http://localhost/prestamos/api_postgres.php';
+        const statusDiv = document.getElementById('status');
+
+        const prestatarios = [
+            {
+                nombre: 'Juan Carlos',
+                apellido: 'Pérez González',
+                cedula: '12345678',
+                telefono: '809-555-0101',
+                direccion: 'Calle Principal #123, Santo Domingo',
+                email: 'juan.perez@email.com'
+            },
+            {
+                nombre: 'María Elena',
+                apellido: 'Rodríguez López',
+                cedula: '23456789',
+                telefono: '809-555-0102',
+                direccion: 'Av. Independencia #456, Santiago',
+                email: 'maria.rodriguez@email.com'
+            },
+            {
+                nombre: 'Pedro Antonio',
+                apellido: 'Martínez Silva',
+                cedula: '34567890',
+                telefono: '809-555-0103',
+                direccion: 'Calle Duarte #789, La Vega',
+                email: 'pedro.martinez@email.com'
+            },
+            {
+                nombre: 'Ana Sofía',
+                apellido: 'García Fernández',
+                cedula: '45678901',
+                telefono: '809-555-0104',
+                direccion: 'Av. 27 de Febrero #321, Santo Domingo',
+                email: 'ana.garcia@email.com'
+            },
+            {
+                nombre: 'Luis Miguel',
+                apellido: 'Hernández Castro',
+                cedula: '56789012',
+                telefono: '809-555-0105',
+                direccion: 'Calle Mella #654, San Cristóbal',
+                email: 'luis.hernandez@email.com'
+            }
+        ];
+
+        const prestamos = [
+            { monto: 50000, tasa_interes: 15, plazo_meses: 12, cuota_mensual: 4791.67 },
+            { monto: 75000, tasa_interes: 12, plazo_meses: 18, cuota_mensual: 4861.11 },
+            { monto: 30000, tasa_interes: 18, plazo_meses: 6, cuota_mensual: 5416.67 },
+            { monto: 100000, tasa_interes: 10, plazo_meses: 24, cuota_mensual: 4614.49 },
+            { monto: 25000, tasa_interes: 20, plazo_meses: 9, cuota_mensual: 3194.44 }
+        ];
+
+        async function insertarDatos() {
+            statusDiv.innerHTML += '<p>Iniciando inserción de datos...</p>';
+            
+            try {
+                // Insertar prestatarios
+                const prestatarioIds = [];
+                
+                for (let i = 0; i < prestatarios.length; i++) {
+                    const formData = new FormData();
+                    formData.append('action', 'crear_prestatario');
+                    Object.keys(prestatarios[i]).forEach(key => {
+                        formData.append(key, prestatarios[i][key]);
+                    });
+
+                    const response = await fetch(API_URL, {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    const result = await response.json();
+                    if (result.success) {
+                        prestatarioIds.push(result.id);
+                        statusDiv.innerHTML += `<p>✅ Prestatario ${prestatarios[i].nombre} ${prestatarios[i].apellido} insertado (ID: ${result.id})</p>`;
+                    } else {
+                        statusDiv.innerHTML += `<p>❌ Error insertando prestatario ${prestatarios[i].nombre}: ${result.message}</p>`;
+                    }
+                }
+
+                // Insertar préstamos
+                for (let i = 0; i < prestatarioIds.length; i++) {
+                    const formData = new FormData();
+                    formData.append('action', 'registrar_prestamo');
+                    formData.append('id_prestatario', prestatarioIds[i]);
+                    formData.append('monto', prestamos[i].monto);
+                    formData.append('tasa_interes', prestamos[i].tasa_interes);
+                    formData.append('plazo_meses', prestamos[i].plazo_meses);
+                    formData.append('cuota_mensual', prestamos[i].cuota_mensual);
+
+                    const response = await fetch(API_URL, {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    const result = await response.json();
+                    if (result.success) {
+                        statusDiv.innerHTML += `<p>✅ Préstamo de $${prestamos[i].monto.toLocaleString()} insertado para prestatario ID ${prestatarioIds[i]}</p>`;
+                    } else {
+                        statusDiv.innerHTML += `<p>❌ Error insertando préstamo: ${result.message}</p>`;
+                    }
+                }
+
+                statusDiv.innerHTML += '<p><strong>🎉 ¡Datos de prueba insertados exitosamente!</strong></p>';
+                statusDiv.innerHTML += '<p>Puedes cerrar esta ventana y refrescar la aplicación.</p>';
+
+            } catch (error) {
+                statusDiv.innerHTML += `<p>❌ Error: ${error.message}</p>`;
+            }
+        }
+
+        // Ejecutar automáticamente
+        insertarDatos();
+    </script>
+</body>
+</html>
