@@ -7,6 +7,7 @@ services:
     build:
       type: docker
       dockerfile: Dockerfile.backend
+      context: .
     ports:
       - port: 80
         protocol: http
@@ -31,6 +32,8 @@ services:
       path: /api_postgres.php
       port: 80
       protocol: http
+      initial_delay_seconds: 30
+      timeout_seconds: 10
 
   # Servicio Frontend React
   - name: prestamos-frontend
@@ -38,6 +41,7 @@ services:
     build:
       type: docker
       dockerfile: Dockerfile.frontend
+      context: .
     ports:
       - port: 80
         protocol: http
@@ -54,6 +58,8 @@ services:
       path: /
       port: 80
       protocol: http
+      initial_delay_seconds: 60
+      timeout_seconds: 10
 
 # Base de datos PostgreSQL (usando servicio externo como Neon, Supabase o similar)
 databases:
