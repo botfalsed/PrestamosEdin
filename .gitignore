@@ -4,7 +4,7 @@ vendor/
 package-lock.json
 
 # Build outputs
-build/
+dashboard/build/
 dist/
 *.tgz
 *.tar.gz
