@@ -1,0 +1,38 @@
+# Dockerfile principal para PrestamosEdin - Fullstack App
+FROM php:8.2-apache
+
+# Instalar Node.js para construir el frontend
+RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
+    && apt-get install -y nodejs
+
+# Instalar extensiones necesarias para PostgreSQL
+RUN apt-get update && apt-get install -y \
+    libpq-dev \
+    && docker-php-ext-install pdo pdo_pgsql
+
+# Habilitar mod_rewrite para Apache
+RUN a2enmod rewrite
+
+# Copiar y construir el frontend React
+COPY dashboard/ /tmp/dashboard/
+WORKDIR /tmp/dashboard
+RUN npm install && npm run build
+
+# Copiar archivos del backend PHP
+COPY backend/ /var/www/html/
+
+# Copiar el frontend construido al directorio web
+RUN cp -r /tmp/dashboard/build/* /var/www/html/
+
+# Configurar permisos
+RUN chown -R www-data:www-data /var/www/html \
+    && chmod -R 755 /var/www/html
+
+# Limpiar archivos temporales
+RUN rm -rf /tmp/dashboard
+
+# Exponer puerto 80
+EXPOSE 80
+
+# Comando por defecto
+CMD ["apache2-foreground"]
