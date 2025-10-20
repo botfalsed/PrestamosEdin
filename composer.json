@@ -1,0 +1,26 @@
+{
+    "name": "prestamosedin/fullstack-app",
+    "description": "Sistema de Gestión de Préstamos - Fullstack PHP + React",
+    "type": "project",
+    "license": "MIT",
+    "require": {
+        "php": ">=8.0"
+    },
+    "require-dev": {
+        "php": ">=8.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "PrestamosEdin\\": "backend/"
+        }
+    },
+    "scripts": {
+        "start": "php -S 0.0.0.0:8000 index.php",
+        "build": "echo 'Building frontend...' && cd dashboard && npm install && npm run build && cd .. && echo 'Build completed!'"
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "preferred-install": "dist",
+        "sort-packages": true
+    }
+}
