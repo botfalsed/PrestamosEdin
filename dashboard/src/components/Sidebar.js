@@ -1,5 +1,6 @@
 import React, { memo } from 'react';
 import { useNavigation } from '../context/NavigationContext';
+import { ConnectionStatus } from './ConnectionStatus';
 import logo from '../assets/prestamos.jpg';
 
 const Sidebar = memo(() => {
@@ -128,6 +129,11 @@ const Sidebar = memo(() => {
           ))}
         </ul>
       </nav>
+      
+      {/* Estado de conexión WebSocket */}
+      <div className="p-3 border-t border-gray-200">
+        <ConnectionStatus compact={true} />
+      </div>
       
       <div className="p-4 border-t border-gray-200">
         <p className="text-xs text-gray-500 text-center">&copy; 2025 Sistema de Préstamos</p>

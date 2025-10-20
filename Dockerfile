@@ -10,26 +10,37 @@ RUN apt-get update && apt-get install -y \
     libpq-dev \
     && docker-php-ext-install pdo pdo_pgsql
 
-# Habilitar mod_rewrite para Apache
-RUN a2enmod rewrite
+# Habilitar módulos de Apache necesarios
+RUN a2enmod rewrite headers
 
-# Copiar y construir el frontend React
-COPY dashboard/ /tmp/dashboard/
-WORKDIR /tmp/dashboard
-RUN npm install && npm run build
+# Establecer directorio de trabajo
+WORKDIR /var/www/html
 
-# Copiar archivos del backend PHP
-COPY backend/ /var/www/html/
+# Copiar todos los archivos del proyecto
+COPY . .
 
-# Copiar el frontend construido al directorio web
-RUN cp -r /tmp/dashboard/build/* /var/www/html/
+# Construir el frontend React
+RUN cd dashboard && \
+    npm install && \
+    npm run build && \
+    cd .. && \
+    mkdir -p build && \
+    cp -r dashboard/build/* build/
 
 # Configurar permisos
 RUN chown -R www-data:www-data /var/www/html \
     && chmod -R 755 /var/www/html
 
-# Limpiar archivos temporales
-RUN rm -rf /tmp/dashboard
+# Configurar Apache para usar el directorio raíz correcto
+RUN echo "DocumentRoot /var/www/html" > /etc/apache2/sites-available/000-default.conf && \
+    echo "<VirtualHost *:80>" >> /etc/apache2/sites-available/000-default.conf && \
+    echo "    DocumentRoot /var/www/html" >> /etc/apache2/sites-available/000-default.conf && \
+    echo "    DirectoryIndex index.php index.html index.htm" >> /etc/apache2/sites-available/000-default.conf && \
+    echo "    <Directory /var/www/html>" >> /etc/apache2/sites-available/000-default.conf && \
+    echo "        AllowOverride All" >> /etc/apache2/sites-available/000-default.conf && \
+    echo "        Require all granted" >> /etc/apache2/sites-available/000-default.conf && \
+    echo "    </Directory>" >> /etc/apache2/sites-available/000-default.conf && \
+    echo "</VirtualHost>" >> /etc/apache2/sites-available/000-default.conf
 
 # Exponer puerto 80
 EXPOSE 80

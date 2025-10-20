@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useSincronizacionDashboard } from '../hooks/useSincronizacionDashboard';
+import { useRealtimeUpdates } from './useRealtimeUpdates';
 
 export const ComponenteSincronizacion = () => {
   const {
@@ -11,7 +11,7 @@ export const ComponenteSincronizacion = () => {
     sincronizar,
     obtenerPrestamos,
     procesarCambios
-  } = useSincronizacionDashboard();
+  } = useRealtimeUpdates();
 
   const [prestamos, setPrestamos] = useState([]);
   const [ultimosCambios, setUltimosCambios] = useState([]);

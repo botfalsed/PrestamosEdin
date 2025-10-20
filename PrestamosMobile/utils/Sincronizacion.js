@@ -1,6 +1,6 @@
 // PrestamosMobile/utils/Sincronizacion.js
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Alert } from 'react-native';
+import { Alert, AppState } from 'react-native';
 import mobileApi from '../services/mobileApi';
 
 class SyncManagerMobile {

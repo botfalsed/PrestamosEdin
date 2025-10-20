@@ -3,7 +3,7 @@
  * Maneja la conexión en tiempo real y las notificaciones push
  */
 
-import { io } from 'socket.io-client';
+import io from 'socket.io-client';
 import { Alert, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 

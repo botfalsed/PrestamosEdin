@@ -1,0 +1,50 @@
+# Configuración de despliegue para Koyeb
+[build]
+  # Comando de construcción
+  command = "cd dashboard && npm install && npm run build && cd .. && cp -r dashboard/build/* build/"
+
+[deploy]
+  # Configuración del servicio
+  name = "prestamos-edin"
+  type = "web"
+  
+  # Variables de entorno
+  [deploy.env]
+    NODE_ENV = "production"
+    PHP_VERSION = "8.1"
+    
+  # Configuración del puerto
+  port = 8080
+  
+  # Configuración de salud
+  [deploy.health_check]
+    path = "/api/status"
+    port = 8080
+    
+  # Configuración de recursos
+  [deploy.resources]
+    memory = "512Mi"
+    cpu = "0.5"
+
+[services]
+  # Servicio principal
+  [[services.web]]
+    name = "prestamos-app"
+    type = "web"
+    port = 8080
+    
+    # Configuración de archivos estáticos
+    [services.web.static]
+      enabled = true
+      path = "/build"
+      
+    # Configuración PHP
+    [services.web.php]
+      version = "8.1"
+      document_root = "/"
+      index_files = ["index.php", "index.html"]
+      
+    # Variables de entorno específicas
+    [services.web.env]
+      DOCUMENT_ROOT = "/workspace"
+      APACHE_DOCUMENT_ROOT = "/workspace"

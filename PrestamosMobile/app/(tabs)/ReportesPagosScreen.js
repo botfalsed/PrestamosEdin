@@ -325,11 +325,9 @@ const ReportesPagosScreen = ({ navigation }) => {
       console.log('🔄 Creando archivo HTML temporal...');
       
       const fileName = `reporte_pagos_${new Date().getTime()}.html`;
-      const htmlUri = `${FileSystem.documentDirectory}${fileName}`;
+      const htmlUri = FileSystem.documentDirectory + fileName;
       
-      await FileSystem.writeAsStringAsync(htmlUri, htmlContent, {
-        encoding: FileSystem.EncodingType.UTF8,
-      });
+      await FileSystem.writeAsStringAsync(htmlUri, htmlContent);
 
       console.log('✅ Archivo HTML creado:', htmlUri);
 

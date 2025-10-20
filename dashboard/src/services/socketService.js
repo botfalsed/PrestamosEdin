@@ -6,7 +6,10 @@ class SocketService {
     this.isConnected = false;
     this.listeners = new Map();
     this.reconnectAttempts = 0;
-    this.maxReconnectAttempts = 5;
+    this.maxReconnectAttempts = 10; // Aumentar intentos
+    this.reconnectDelay = 1000; // Delay inicial
+    this.maxReconnectDelay = 30000; // Delay máximo
+    this.reconnectTimer = null;
   }
 
   // Conectar al servidor de tiempo real
@@ -19,10 +22,14 @@ class SocketService {
     try {
       this.socket = io(url, {
         transports: ['websocket', 'polling'],
-        timeout: 5000,
+        timeout: 10000, // Aumentar timeout
         reconnection: true,
-        reconnectionDelay: 1000,
-        reconnectionAttempts: this.maxReconnectAttempts
+        reconnectionDelay: this.reconnectDelay,
+        reconnectionDelayMax: this.maxReconnectDelay,
+        reconnectionAttempts: this.maxReconnectAttempts,
+        randomizationFactor: 0.5, // Añadir randomización
+        forceNew: false,
+        autoConnect: true
       });
 
       this.setupEventListeners();
@@ -30,6 +37,7 @@ class SocketService {
       
     } catch (error) {
       console.error('❌ Error al conectar Socket.io:', error);
+      this.scheduleReconnect();
     }
   }
 
@@ -39,7 +47,7 @@ class SocketService {
 
     this.socket.on('connect', () => {
       this.isConnected = true;
-      this.reconnectAttempts = 0;
+      this.resetReconnectAttempts(); // Resetear intentos al conectar exitosamente
       console.log('✅ Socket conectado:', this.socket.id);
       
       // Unirse a la sala del dashboard
@@ -68,6 +76,18 @@ class SocketService {
       
       if (this.reconnectAttempts >= this.maxReconnectAttempts) {
         console.error('❌ Máximo de intentos de reconexión alcanzado');
+        this.notifyListeners('connection_status', { 
+          status: 'failed', 
+          error: 'Máximo de intentos de reconexión alcanzado',
+          attempts: this.reconnectAttempts
+        });
+      } else {
+        console.log(`🔄 Intento de reconexión ${this.reconnectAttempts}/${this.maxReconnectAttempts}`);
+        this.notifyListeners('connection_status', { 
+          status: 'reconnecting', 
+          attempts: this.reconnectAttempts,
+          maxAttempts: this.maxReconnectAttempts
+        });
       }
     });
 
@@ -185,6 +205,42 @@ class SocketService {
       console.log(`📤 Evento emitido: ${eventName}`, data);
     } else {
       console.warn('⚠️ Socket no conectado, no se puede emitir evento:', eventName);
+    }
+  }
+
+  // Programar reconexión manual con backoff exponencial
+  scheduleReconnect() {
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+    }
+
+    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+      console.error('❌ Máximo de intentos de reconexión alcanzado');
+      return;
+    }
+
+    // Backoff exponencial con jitter
+    const delay = Math.min(
+      this.reconnectDelay * Math.pow(2, this.reconnectAttempts),
+      this.maxReconnectDelay
+    );
+    const jitter = delay * 0.1 * Math.random();
+    const finalDelay = delay + jitter;
+
+    console.log(`🔄 Programando reconexión en ${Math.round(finalDelay)}ms (intento ${this.reconnectAttempts + 1}/${this.maxReconnectAttempts})`);
+
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectAttempts++;
+      this.connect();
+    }, finalDelay);
+  }
+
+  // Resetear contador de reconexión
+  resetReconnectAttempts() {
+    this.reconnectAttempts = 0;
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
     }
   }
 }

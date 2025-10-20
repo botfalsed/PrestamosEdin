@@ -1,0 +1,18 @@
+# Configuración específica para el directorio dashboard
+DirectoryIndex index.html index.php index.htm
+
+# Permitir listado de directorios si no hay index
+Options +Indexes
+
+# Configuración CORS
+<IfModule mod_headers.c>
+    Header always set Access-Control-Allow-Origin "*"
+    Header always set Access-Control-Allow-Methods "GET, POST, OPTIONS"
+    Header always set Access-Control-Allow-Headers "Content-Type, Authorization"
+</IfModule>
+
+# Redirigir al dashboard principal si se accede directamente
+RewriteEngine On
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ /index.php [QSA,L]
