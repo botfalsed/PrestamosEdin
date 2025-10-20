@@ -3,7 +3,6 @@ import axios from 'axios';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { useSyncDashboard } from '../hooks/useSyncDashboard';
-import '../assets/css/Archivados.css';
 
 const Archivados = () => {
   const [archivados, setArchivados] = useState([]);
@@ -32,7 +31,7 @@ const Archivados = () => {
 
   const cargarArchivados = () => {
     setLoading(true);
-    axios.get('http://192.168.18.22:8080/api_postgres.php?action=prestamos_archivados')
+    axios.get('http://localhost:8080/api_postgres.php?action=prestamos_archivados')
       .then(response => {
         console.log('📁 Préstamos archivados cargados:', response.data);
         if (Array.isArray(response.data)) {
@@ -52,7 +51,7 @@ const Archivados = () => {
 
   const cargarPagosPrestamo = async (idPrestamo) => {
     try {
-      const response = await axios.get(`http://192.168.18.22:8080/api_postgres.php?action=pagos&id_prestamo=${idPrestamo}`);
+      const response = await axios.get(`http://localhost:8080/api_postgres.php?action=pagos&id_prestamo=${idPrestamo}`);
       if (Array.isArray(response.data)) {
         return response.data;
       }
@@ -262,7 +261,7 @@ const Archivados = () => {
   const reabrirPrestamo = async (prestamo) => {
     if (window.confirm(`¿Reabrir el préstamo de ${prestamo.nombre}?`)) {
       try {
-        const response = await axios.post('http://192.168.18.22:8080/api_postgres.php?action=reactivar_prestamo', {
+        const response = await axios.post('http://localhost:8080/api_postgres.php?action=reactivar_prestamo', {
           id_prestamo: parseInt(prestamo.id_prestamo)
         });
 
@@ -338,13 +337,13 @@ const Archivados = () => {
   };
 
   return (
-    <div className="archivados-container">
-      <div className="archivados-header">
-        <h1>📁 Préstamos Archivados</h1>
-        <p>Historial de préstamos completamente pagados y archivados</p>
+    <div className="p-5 max-w-7xl mx-auto w-full">
+      <div className="text-center mb-8">
+        <h1 className="text-gray-800 mb-2 text-4xl font-bold">📁 Préstamos Archivados</h1>
+        <p className="text-gray-500 text-lg">Historial de préstamos completamente pagados y archivados</p>
         <button 
           onClick={cargarArchivados} 
-          className="btn-actualizar"
+          className="mt-4 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
           disabled={loading}
         >
           🔄 {loading ? 'Cargando...' : 'Actualizar'}
@@ -352,118 +351,136 @@ const Archivados = () => {
       </div>
 
       {/* Estadísticas */}
-      <div className="estadisticas-grid">
-        <div className="stat-card">
-          <div className="stat-icon">📊</div>
-          <div className="stat-info">
-            <h3>{estadisticas.totalArchivados}</h3>
-            <p>Total Archivados</p>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
+        <div className="bg-white p-5 rounded-xl shadow-soft flex items-center gap-4 transition-transform duration-300 hover:-translate-y-1 border-l-4 border-green-600">
+          <div className="text-3xl">📊</div>
+          <div>
+            <h3 className="text-3xl font-bold text-gray-800 m-0">{estadisticas.totalArchivados}</h3>
+            <p className="text-gray-500 text-sm m-0">Total Archivados</p>
           </div>
         </div>
-        <div className="stat-card">
-          <div className="stat-icon">📅</div>
-          <div className="stat-info">
-            <h3>{estadisticas.totalEsteMes}</h3>
-            <p>Pagados este mes</p>
+        <div className="bg-white p-5 rounded-xl shadow-soft flex items-center gap-4 transition-transform duration-300 hover:-translate-y-1 border-l-4 border-green-600">
+          <div className="text-3xl">📅</div>
+          <div>
+            <h3 className="text-3xl font-bold text-gray-800 m-0">{estadisticas.totalEsteMes}</h3>
+            <p className="text-gray-500 text-sm m-0">Pagados este mes</p>
           </div>
         </div>
-        <div className="stat-card">
-          <div className="stat-icon">💰</div>
-          <div className="stat-info">
-            <h3>{formatearMoneda(estadisticas.montoRecuperado)}</h3>
-            <p>Total Recuperado</p>
+        <div className="bg-white p-5 rounded-xl shadow-soft flex items-center gap-4 transition-transform duration-300 hover:-translate-y-1 border-l-4 border-green-600">
+          <div className="text-3xl">💰</div>
+          <div>
+            <h3 className="text-3xl font-bold text-gray-800 m-0">{formatearMoneda(estadisticas.montoRecuperado)}</h3>
+            <p className="text-gray-500 text-sm m-0">Total Recuperado</p>
           </div>
         </div>
       </div>
 
       {/* Filtros */}
-      <div className="filtros-section">
-        <div className="filtros">
+      <div className="flex justify-between items-center mb-5 flex-wrap gap-4">
+        <div className="flex gap-3 flex-wrap">
           <button 
-            className={`filtro-btn ${filtro === 'todos' ? 'active' : ''}`}
+            className={`py-3 px-5 border-2 rounded-full cursor-pointer transition-all duration-300 font-medium ${
+              filtro === 'todos' 
+                ? 'bg-green-600 text-white border-green-600' 
+                : 'bg-white border-gray-200 hover:border-green-600 hover:text-green-600'
+            }`}
             onClick={() => setFiltro('todos')}
           >
             Todos ({archivados.length})
           </button>
           <button 
-            className={`filtro-btn ${filtro === 'este_mes' ? 'active' : ''}`}
+            className={`py-3 px-5 border-2 rounded-full cursor-pointer transition-all duration-300 font-medium ${
+              filtro === 'este_mes' 
+                ? 'bg-green-600 text-white border-green-600' 
+                : 'bg-white border-gray-200 hover:border-green-600 hover:text-green-600'
+            }`}
             onClick={() => setFiltro('este_mes')}
           >
             Este Mes ({estadisticas.totalEsteMes})
           </button>
           <button 
-            className={`filtro-btn ${filtro === 'ultimos_3_meses' ? 'active' : ''}`}
+            className={`py-3 px-5 border-2 rounded-full cursor-pointer transition-all duration-300 font-medium ${
+              filtro === 'ultimos_3_meses' 
+                ? 'bg-green-600 text-white border-green-600' 
+                : 'bg-white border-gray-200 hover:border-green-600 hover:text-green-600'
+            }`}
             onClick={() => setFiltro('ultimos_3_meses')}
           >
             Últimos 3 Meses
           </button>
         </div>
-        <div className="contador">
+        <div className="text-gray-500 text-sm py-2 px-4 bg-gray-50 rounded-full">
           Mostrando: {archivadosFiltrados.length} de {archivados.length}
         </div>
       </div>
 
       {/* Tabla de Archivados */}
-      <div className="table-container">
+      <div className="bg-white rounded-xl shadow-soft overflow-hidden mb-5">
         {loading ? (
-          <div className="loading">Cargando préstamos archivados...</div>
+          <div className="text-center py-10 text-xl text-blue-600">Cargando préstamos archivados...</div>
         ) : archivadosFiltrados.length > 0 ? (
-          <table className="archivados-table">
+          <table className="w-full border-collapse">
             <thead>
               <tr>
-                <th>Prestatario</th>
-                <th>DNI</th>
-                <th>Monto Inicial</th>
-                <th>Total Pagado</th>
-                <th>Fecha Inicio</th>
-                <th>Fecha Pago Final</th>
-                <th>Días desde Pago</th>
-                <th>Acciones</th>
+                <th className="bg-green-600 text-white p-4 text-left font-semibold text-sm">Prestatario</th>
+                <th className="bg-green-600 text-white p-4 text-left font-semibold text-sm">DNI</th>
+                <th className="bg-green-600 text-white p-4 text-left font-semibold text-sm">Monto Inicial</th>
+                <th className="bg-green-600 text-white p-4 text-left font-semibold text-sm">Total Pagado</th>
+                <th className="bg-green-600 text-white p-4 text-left font-semibold text-sm">Fecha Inicio</th>
+                <th className="bg-green-600 text-white p-4 text-left font-semibold text-sm">Fecha Pago Final</th>
+                <th className="bg-green-600 text-white p-4 text-left font-semibold text-sm">Días desde Pago</th>
+                <th className="bg-green-600 text-white p-4 text-left font-semibold text-sm">Acciones</th>
               </tr>
             </thead>
             <tbody>
               {archivadosFiltrados.map(prestamo => {
                 const diasDesdePago = calcularDiasDesdePago(prestamo.fecha_ultimo_pago);
                 return (
-                  <tr key={prestamo.id_prestamo} className="archivado-row">
-                    <td className="prestatario-cell">
+                  <tr key={prestamo.id_prestamo} className="hover:bg-gray-50">
+                    <td className="p-3 border-b border-gray-100 font-medium">
                       <strong>{prestamo.nombre || 'N/A'}</strong>
                       <br />
-                      <small>{prestamo.telefono || 'Sin teléfono'}</small>
+                      <small className="text-gray-500 text-xs">{prestamo.telefono || 'Sin teléfono'}</small>
                     </td>
-                    <td className="dni-cell">{prestamo.dni || 'N/A'}</td>
-                    <td className="monto">{formatearMoneda(prestamo.monto_inicial)}</td>
-                    <td className="monto-total">{formatearMoneda(prestamo.monto_total)}</td>
-                    <td>{formatearFecha(prestamo.fecha_inicio)}</td>
-                    <td className="fecha-pago">{formatearFecha(prestamo.fecha_ultimo_pago)}</td>
-                    <td>
-                      <span className={`dias-badge ${diasDesdePago > 90 ? 'antiguo' : 'reciente'}`}>
+                    <td className="p-3 border-b border-gray-100 font-mono font-semibold text-gray-800">{prestamo.dni || 'N/A'}</td>
+                    <td className="p-3 border-b border-gray-100 font-mono font-semibold text-right text-gray-800">{formatearMoneda(prestamo.monto_inicial)}</td>
+                    <td className="p-3 border-b border-gray-100 font-mono font-semibold text-right text-green-600">{formatearMoneda(prestamo.monto_total)}</td>
+                    <td className="p-3 border-b border-gray-100">{formatearFecha(prestamo.fecha_inicio)}</td>
+                    <td className="p-3 border-b border-gray-100 text-green-600 font-medium">{formatearFecha(prestamo.fecha_ultimo_pago)}</td>
+                    <td className="p-3 border-b border-gray-100">
+                      <span className={`py-1 px-2 rounded-xl text-xs font-semibold ${
+                        diasDesdePago > 90 
+                          ? 'bg-orange-100 text-orange-800' 
+                          : 'bg-green-100 text-green-800'
+                      }`}>
                         {diasDesdePago} días
                       </span>
                     </td>
-                    <td className="acciones-cell">
-                      <button 
-                        className="btn-detalles"
-                        onClick={() => verDetalles(prestamo)}
-                        title="Ver detalles completos"
-                      >
-                        👁️ Ver
-                      </button>
-                      <button 
-                        className="btn-pdf"
-                        onClick={() => exportarPDF(prestamo)}
-                        disabled={generandoPDF}
-                        title="Exportar a PDF"
-                      >
-                        {generandoPDF ? '⏳' : '📄'} PDF
-                      </button>
-                      <button 
-                        className="btn-reabrir"
-                        onClick={() => reabrirPrestamo(prestamo)}
-                        title="Reabrir préstamo"
-                      >
-                        🔄 Reabrir
-                      </button>
+                    <td className="p-3 border-b border-gray-100">
+                      <div className="flex gap-2 flex-wrap">
+                        <button 
+                          className="bg-blue-600 hover:bg-blue-700 text-white text-xs py-1 px-3 rounded-lg transition-colors duration-200"
+                          onClick={() => verDetalles(prestamo)}
+                          title="Ver detalles completos"
+                        >
+                          👁️ Ver
+                        </button>
+                        <button 
+                          className="bg-red-600 hover:bg-red-700 text-white text-xs py-1 px-3 rounded-lg transition-colors duration-200 disabled:opacity-50"
+                          onClick={() => exportarPDF(prestamo)}
+                          disabled={generandoPDF}
+                          title="Exportar a PDF"
+                        >
+                          {generandoPDF ? '⏳' : '📄'} PDF
+                        </button>
+                        <button 
+                          className="bg-green-600 hover:bg-green-700 text-white text-xs py-1 px-3 rounded-lg transition-colors duration-200"
+                          onClick={() => reabrirPrestamo(prestamo)}
+                          title="Reabrir préstamo"
+                        >
+                          🔄 Reabrir
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -471,11 +488,14 @@ const Archivados = () => {
             </tbody>
           </table>
         ) : (
-          <div className="no-data">
-            <div className="no-data-icon">📁</div>
-            <h3>No hay préstamos archivados</h3>
-            <p>Los préstamos que archives desde la gestión aparecerán aquí automáticamente</p>
-            <button onClick={cargarArchivados} className="btn-reintentar">
+          <div className="text-center py-16">
+            <div className="text-6xl mb-4">📁</div>
+            <h3 className="text-xl font-semibold text-gray-800 mb-2">No hay préstamos archivados</h3>
+            <p className="text-gray-500 mb-6">Los préstamos que archives desde la gestión aparecerán aquí automáticamente</p>
+            <button 
+              onClick={cargarArchivados} 
+              className="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200"
+            >
               🔄 Reintentar carga
             </button>
           </div>
@@ -484,65 +504,76 @@ const Archivados = () => {
 
       {/* Modal de Detalles */}
       {mostrarModal && prestamoSeleccionado && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <div className="modal-header">
-              <h3>📋 Detalles del Préstamo Archivado</h3>
-              <button onClick={() => setMostrarModal(false)}>✕</button>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-strong max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center p-6 border-b border-gray-200">
+              <h3 className="text-xl font-bold text-gray-800">📋 Detalles del Préstamo Archivado</h3>
+              <button 
+                onClick={() => setMostrarModal(false)}
+                className="text-gray-500 hover:text-gray-700 text-2xl font-bold"
+              >
+                ✕
+              </button>
             </div>
-            <div className="modal-body">
-              <div className="detalles-grid">
-                <div className="detalle-item">
-                  <label>Prestatario:</label>
-                  <span>{prestamoSeleccionado.nombre}</span>
+            <div className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Prestatario:</label>
+                    <span className="text-gray-900">{prestamoSeleccionado.nombre}</span>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">DNI:</label>
+                    <span className="text-gray-900">{prestamoSeleccionado.dni}</span>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono:</label>
+                    <span className="text-gray-900">{prestamoSeleccionado.telefono}</span>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Monto Inicial:</label>
+                    <span className="text-gray-900">{formatearMoneda(prestamoSeleccionado.monto_inicial)}</span>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Tasa de Interés:</label>
+                    <span className="text-gray-900">{prestamoSeleccionado.tasa_interes}%</span>
+                  </div>
                 </div>
-                <div className="detalle-item">
-                  <label>DNI:</label>
-                  <span>{prestamoSeleccionado.dni}</span>
-                </div>
-                <div className="detalle-item">
-                  <label>Teléfono:</label>
-                  <span>{prestamoSeleccionado.telefono}</span>
-                </div>
-                <div className="detalle-item">
-                  <label>Monto Inicial:</label>
-                  <span>{formatearMoneda(prestamoSeleccionado.monto_inicial)}</span>
-                </div>
-                <div className="detalle-item">
-                  <label>Tasa de Interés:</label>
-                  <span>{prestamoSeleccionado.tasa_interes}%</span>
-                </div>
-                <div className="detalle-item">
-                  <label>Total Pagado:</label>
-                  <span className="monto-total">{formatearMoneda(prestamoSeleccionado.monto_total)}</span>
-                </div>
-                <div className="detalle-item">
-                  <label>Fecha de Inicio:</label>
-                  <span>{formatearFecha(prestamoSeleccionado.fecha_inicio)}</span>
-                </div>
-                <div className="detalle-item">
-                  <label>Fecha de Pago Final:</label>
-                  <span>{formatearFecha(prestamoSeleccionado.fecha_ultimo_pago)}</span>
-                </div>
-                <div className="detalle-item">
-                  <label>Período:</label>
-                  <span>{prestamoSeleccionado.cantidad_periodo} {prestamoSeleccionado.tipo_periodo}</span>
-                </div>
-                <div className="detalle-item full-width">
-                  <label>Estado:</label>
-                  <span className="estado-completado">✅ Completamente Pagado y Archivado</span>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Total Pagado:</label>
+                    <span className="text-green-600 font-semibold">{formatearMoneda(prestamoSeleccionado.monto_total)}</span>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Fecha de Inicio:</label>
+                    <span className="text-gray-900">{formatearFecha(prestamoSeleccionado.fecha_inicio)}</span>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Fecha de Pago Final:</label>
+                    <span className="text-gray-900">{formatearFecha(prestamoSeleccionado.fecha_ultimo_pago)}</span>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Período:</label>
+                    <span className="text-gray-900">{prestamoSeleccionado.cantidad_periodo} {prestamoSeleccionado.tipo_periodo}</span>
+                  </div>
+                  <div className="col-span-full">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Estado:</label>
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                      ✅ Completamente Pagado y Archivado
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
-            <div className="modal-footer">
+            <div className="flex flex-col sm:flex-row justify-end gap-3 p-6 border-t border-gray-200">
               <button 
-                className="btn-cerrar"
+                className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-2 px-4 rounded-lg transition-colors duration-200"
                 onClick={() => setMostrarModal(false)}
               >
                 Cerrar
               </button>
               <button 
-                className="btn-pdf"
+                className="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 disabled:opacity-50"
                 onClick={() => {
                   setMostrarModal(false);
                   exportarPDF(prestamoSeleccionado);
@@ -552,7 +583,7 @@ const Archivados = () => {
                 {generandoPDF ? '⏳' : '📄'} Exportar PDF
               </button>
               <button 
-                className="btn-reabrir"
+                className="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200"
                 onClick={() => {
                   setMostrarModal(false);
                   reabrirPrestamo(prestamoSeleccionado);

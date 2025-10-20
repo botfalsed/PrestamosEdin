@@ -4,48 +4,67 @@ import {
   Text, 
   TextInput, 
   TouchableOpacity, 
-  StyleSheet, 
-  Alert, 
-  ActivityIndicator,
-  ScrollView,
-  Modal,
+  ScrollView, 
+  Modal, 
   SafeAreaView,
+  Alert,
   Animated,
-  Dimensions
+  Dimensions,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
-import axios from 'axios';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import mobileApi from '../../services/mobileApi';
+import storageService from '../../services/storageService';
+import reportService from '../../services/reportService';
+import { useStats } from '../../contexts/StatsContext';
 
-const API_URL = 'http://192.168.18.22:8080/api_postgres.php';
-const WEBSOCKET_URL = 'ws://192.168.18.22:8081';
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 
 export default function PagosScreen() {
+  // Estados principales
   const [prestamos, setPrestamos] = useState([]);
   const [prestatarios, setPrestatarios] = useState([]);
   const [selectedPrestatario, setSelectedPrestatario] = useState(null);
   const [montoPago, setMontoPago] = useState('');
-  const [loading, setLoading] = useState(true);
   const [searchDNI, setSearchDNI] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [showAll, setShowAll] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
-  const [pagosDetalles, setPagosDetalles] = useState([]);
-  const [loadingPagos, setLoadingPagos] = useState(false);
-  
-  // WebSocket reference
-  const wsRef = useRef(null);
-  const [wsConnected, setWsConnected] = useState(false);
+  const [processingPayment, setProcessingPayment] = useState(false);
+
+  // Hook de estadísticas
+  const { updateStatsAfterPayment } = useStats();
 
   // Animaciones
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(-50)).current;
+  const slideAnim = useRef(new Animated.Value(50)).current;
+
+  // WebSocket
+  const ws = useRef(null);
 
   useEffect(() => {
-    cargarDatos();
-    initWebSocket();
+    initializeScreen();
+    return () => {
+      if (ws.current) {
+        ws.current.close();
+      }
+    };
+  }, []);
+
+  const initializeScreen = async () => {
+    await loadData();
+    initializeWebSocket();
+    startAnimations();
     
-    // Iniciar animaciones
+    // Inicializar el servicio de reportes automáticos
+    await reportService.initialize();
+  };
+
+  const startAnimations = () => {
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -54,259 +73,334 @@ export default function PagosScreen() {
       }),
       Animated.timing(slideAnim, {
         toValue: 0,
-        duration: 800,
+        duration: 600,
         useNativeDriver: true,
       }),
     ]).start();
-    
-    // Cleanup WebSocket on unmount
-    return () => {
-      if (wsRef.current) {
-        wsRef.current.close();
-      }
-    };
-  }, []);
-
-  const initWebSocket = () => {
-    try {
-      // Cerrar conexión anterior si existe
-      if (wsRef.current && wsRef.current.readyState !== WebSocket.CLOSED) {
-        wsRef.current.close();
-      }
-
-      wsRef.current = new WebSocket(WEBSOCKET_URL);
-      
-      wsRef.current.onopen = () => {
-        console.log('✅ WebSocket conectado');
-        setWsConnected(true);
-        
-        // Registrar como cobrador
-        const registerMessage = {
-          type: 'register_collector',
-          clientType: 'collector',
-          timestamp: new Date().toISOString()
-        };
-        wsRef.current.send(JSON.stringify(registerMessage));
-      };
-      
-      wsRef.current.onclose = (event) => {
-        console.log('🔌 WebSocket desconectado:', event.code, event.reason);
-        setWsConnected(false);
-        
-        // Solo reconectar si no fue un cierre intencional
-        if (event.code !== 1000) {
-          setTimeout(() => {
-            if (!wsRef.current || wsRef.current.readyState === WebSocket.CLOSED) {
-              console.log('🔄 Intentando reconectar WebSocket...');
-              initWebSocket();
-            }
-          }, 3000);
-        }
-      };
-      
-      wsRef.current.onerror = (error) => {
-        console.error('❌ Error WebSocket:', error);
-        setWsConnected(false);
-      };
-      
-    } catch (error) {
-      console.error('❌ Error inicializando WebSocket:', error);
-      setWsConnected(false);
-    }
   };
 
-  const sendPaymentNotification = (paymentData) => {
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      const notification = {
-        type: 'payment_notification',
-        data: {
-          prestatario: paymentData.prestatario,
-          monto: paymentData.monto,
-          fecha: paymentData.fecha,
-          id_prestamo: paymentData.id_prestamo,
-          saldo_anterior: paymentData.saldo_anterior,
-          saldo_nuevo: paymentData.saldo_nuevo
-        },
-        timestamp: new Date().toISOString()
-      };
-      
-      wsRef.current.send(JSON.stringify(notification));
-      console.log('Notificación de pago enviada:', notification);
-    } else {
-      console.warn('WebSocket no está conectado, no se pudo enviar la notificación');
-    }
-  };
-
-  const cargarDatos = async () => {
+  const loadData = async () => {
     try {
       setLoading(true);
-      console.log('Cargando datos...');
       
-      const [prestamosRes, prestatariosRes] = await Promise.all([
-        axios.get(`${API_URL}?action=prestamos`),
-        axios.get(`${API_URL}?action=prestatarios`)
-      ]);
+      // Primero intentar cargar datos del almacenamiento local
+      const hasStoredData = await storageService.hasStoredData();
+      
+      if (hasStoredData) {
+        console.log('📱 [PAGOS] Cargando datos desde almacenamiento local...');
+        const [storedPrestamos, storedPrestatarios] = await Promise.all([
+          storageService.getPrestamos(),
+          storageService.getPrestatarios()
+        ]);
+        
+        if (storedPrestamos.length > 0) {
+          setPrestamos(storedPrestamos);
+          console.log('✅ [PAGOS] Préstamos cargados desde storage:', storedPrestamos.length);
+        }
+        
+        if (storedPrestatarios.length > 0) {
+          setPrestatarios(storedPrestatarios);
+          console.log('✅ [PAGOS] Prestatarios cargados desde storage:', storedPrestatarios.length);
+        }
+      }
+      
+      // Luego intentar actualizar desde la API
+      try {
+        console.log('🌐 [PAGOS] Actualizando datos desde API...');
+        
+        const [prestamosData, prestatariosData] = await Promise.all([
+          mobileApi.getPrestamos(),
+          mobileApi.getPrestatarios()
+        ]);
 
-      console.log('Datos cargados:', {
-        prestamos: prestamosRes.data.length,
-        prestatarios: prestatariosRes.data.length
-      });
+        console.log('📊 [PAGOS] Respuesta completa préstamos:', prestamosData);
+        console.log('👥 [PAGOS] Respuesta completa prestatarios:', prestatariosData);
 
-      if (Array.isArray(prestamosRes.data)) {
-        setPrestamos(prestamosRes.data);
+        // Actualizar préstamos
+        if (Array.isArray(prestamosData)) {
+          setPrestamos(prestamosData);
+          await storageService.savePrestamos(prestamosData);
+          console.log('✅ [PAGOS] Préstamos actualizados desde API:', prestamosData.length);
+        } else {
+          console.error('❌ [PAGOS] Error: préstamos no es un array:', prestamosData);
+          if (!hasStoredData) {
+            Alert.alert('Error', 'No se pudieron cargar los préstamos');
+            setPrestamos([]);
+          }
+        }
+
+        // Actualizar prestatarios
+        if (Array.isArray(prestatariosData)) {
+          setPrestatarios(prestatariosData);
+          await storageService.savePrestatarios(prestatariosData);
+          console.log('✅ [PAGOS] Prestatarios actualizados desde API:', prestatariosData.length);
+        } else {
+          console.error('❌ [PAGOS] Error: prestatarios no es un array:', prestatariosData);
+          if (!hasStoredData) {
+            Alert.alert('Error', 'No se pudieron cargar los prestatarios');
+            setPrestatarios([]);
+          }
+        }
+        
+      } catch (apiError) {
+        console.error('❌ [PAGOS] Error conectando con API:', apiError);
+        
+        if (!hasStoredData) {
+          Alert.alert(
+            'Sin conexión', 
+            'No se pudo conectar con el servidor. Verifica tu conexión a internet.'
+          );
+        } else {
+          console.log('📱 [PAGOS] Usando datos almacenados localmente');
+        }
       }
 
-      if (Array.isArray(prestatariosRes.data)) {
-        setPrestatarios(prestatariosRes.data);
-      }
     } catch (error) {
-      console.error('Error:', error.message);
-      Alert.alert('Error', 'No se pudieron cargar los datos');
+      console.error('❌ [PAGOS] Error general cargando datos:', error);
+      Alert.alert('Error', 'Error inesperado al cargar los datos');
     } finally {
       setLoading(false);
     }
   };
 
-  const cargarPagosPrestatario = async (idPrestatario) => {
+  const initializeWebSocket = () => {
     try {
-      setLoadingPagos(true);
-      const response = await axios.get(`${API_URL}?action=pagos_prestatario&id_prestatario=${idPrestatario}`);
+      console.log('🔌 [WEBSOCKET] Intentando conectar a WebSocket...');
+      // Comentar WebSocket temporalmente para evitar errores
+      /*
+      ws.current = new WebSocket('ws://192.168.1.100:8080');
       
-      if (response.data.success) {
-        setPagosDetalles(response.data.pagos || []);
-      } else {
-        setPagosDetalles([]);
-      }
+      ws.current.onopen = () => {
+        console.log('✅ [WEBSOCKET] Conectado');
+      };
+      
+      ws.current.onmessage = (event) => {
+        console.log('📨 [WEBSOCKET] Mensaje recibido:', event.data);
+        loadData(); // Recargar datos cuando hay cambios
+      };
+      
+      ws.current.onerror = (error) => {
+        console.error('❌ [WEBSOCKET] Error:', error);
+      };
+      
+      ws.current.onclose = () => {
+        console.log('🔌 [WEBSOCKET] Desconectado');
+      };
+      */
+      console.log('⚠️ [WEBSOCKET] WebSocket deshabilitado temporalmente');
     } catch (error) {
-      console.error('Error cargando pagos:', error);
-      setPagosDetalles([]);
-    } finally {
-      setLoadingPagos(false);
+      console.error('❌ [WEBSOCKET] Error inicializando:', error);
     }
   };
 
-  const verDetallesPago = async (prestatario) => {
-    setSelectedPrestatario(prestatario);
-    await cargarPagosPrestatario(prestatario.id_prestatario);
-    setModalVisible(true);
+  // Funciones auxiliares
+  const getPrestamoActivo = (prestatario) => {
+    const prestamo = prestamos.find(p => 
+      p.id_prestatario === prestatario.id_prestatario && 
+      p.estado === 'activo'
+    );
+    console.log(`🔍 [FILTRO] Buscando préstamo activo para ${prestatario.nombre} (ID: ${prestatario.id_prestatario}):`, prestamo);
+    return prestamo;
   };
 
-  const handlePago = async () => {
+  const prestatariosConPrestamos = prestatarios.filter(p => {
+    const tienePrestamo = getPrestamoActivo(p);
+    console.log(`✅ [FILTRO] ${p.nombre} tiene préstamo activo:`, !!tienePrestamo);
+    return tienePrestamo;
+  });
+
+  console.log('📊 [FILTRO] Total prestatarios:', prestatarios.length);
+  console.log('📊 [FILTRO] Total préstamos:', prestamos.length);
+  console.log('📊 [FILTRO] Prestatarios con préstamos activos:', prestatariosConPrestamos.length);
+
+  const prestatariosFiltrados = prestatariosConPrestamos.filter(prestatario =>
+    searchDNI === '' || prestatario.dni.includes(searchDNI)
+  );
+
+  const prestatariosMostrados = showAll ? prestatariosFiltrados : prestatariosFiltrados.slice(0, 5);
+
+  const handleRegistrarPago = async () => {
+    console.log('🚀 [PAGOS] INICIANDO PAGO');
+    
     if (!selectedPrestatario || !montoPago) {
-      Alert.alert('Error', 'Selecciona un prestatario y ingresa el monto');
+      console.log('❌ [PAGOS] Falta prestatario o monto');
+      Alert.alert('Error', 'Selecciona un prestatario e ingresa el monto');
       return;
     }
 
     const monto = parseFloat(montoPago);
     if (isNaN(monto) || monto <= 0) {
+      console.log('❌ [PAGOS] Monto inválido');
       Alert.alert('Error', 'Ingresa un monto válido');
       return;
     }
 
-    // Encontrar el préstamo activo del prestatario
-    const prestamoActivo = prestamos.find(p => 
-      p.id_prestatario === selectedPrestatario.id_prestatario && 
-      parseFloat(p.saldo_pendiente) > 0
-    );
-
-    if (!prestamoActivo) {
-      Alert.alert('Error', 'Este prestatario no tiene préstamos activos');
-      return;
-    }
-
-    if (monto > parseFloat(prestamoActivo.saldo_pendiente)) {
-      Alert.alert('Error', `El monto excede el saldo pendiente: S/. ${prestamoActivo.saldo_pendiente}`);
-      return;
-    }
+    setProcessingPayment(true);
 
     try {
-      setLoading(true);
+      const prestamo = getPrestamoActivo(selectedPrestatario);
       
-      const saldoAnterior = parseFloat(prestamoActivo.saldo_pendiente);
-      const saldoNuevo = saldoAnterior - monto;
+      if (!prestamo) {
+        console.log('❌ [PAGOS] No se encontró préstamo activo');
+        Alert.alert('Error', 'No se encontró un préstamo activo para este prestatario');
+        setProcessingPayment(false);
+        return;
+      }
       
-      const response = await axios.post(`${API_URL}?action=pago`, {
-        id_prestamo: parseInt(prestamoActivo.id_prestamo),
-        monto_pago: monto,
-      });
+      // Manejar usuario temporal para testing
+      let user = { id: 1, nombre: 'Usuario Test' }; // Usuario por defecto
+      
+      try {
+        const userData = await AsyncStorage.getItem('userData');
+        if (userData) {
+          user = JSON.parse(userData);
+        }
+      } catch (error) {
+        console.log('⚠️ [PAGOS] Usando usuario temporal');
+      }
 
-      console.log('Respuesta pago:', response.data);
+      const pagoData = {
+        id_prestamo: prestamo.id_prestamo,
+        monto: monto,
+        cobrador_id: user.id,
+        fecha: new Date().toISOString().split('T')[0]
+      };
+      
+      console.log('🌐 [PAGOS] Enviando pago:', pagoData);
 
-      if (response.data.success) {
-        // Enviar notificación WebSocket
-        sendPaymentNotification({
-          prestatario: {
-            nombre: selectedPrestatario.nombre,
-            dni: selectedPrestatario.dni,
-            id: selectedPrestatario.id_prestatario
-          },
+      const result = await mobileApi.registrarPago(pagoData);
+      
+      console.log('📥 [PAGOS] Respuesta servidor:', result);
+
+      if (result.success) {
+        console.log('✅ [PAGOS] Pago exitoso');
+        
+        // Actualizar estadísticas inmediatamente
+        updateStatsAfterPayment(monto);
+        
+        // Actualizar saldo localmente
+        const prestamoIndex = prestamos.findIndex(p => p.id_prestamo === prestamo.id_prestamo);
+        if (prestamoIndex !== -1) {
+          const nuevoPrestamo = { ...prestamos[prestamoIndex] };
+          nuevoPrestamo.saldo_pendiente = parseFloat(nuevoPrestamo.saldo_pendiente) - monto;
+          
+          const nuevosPrestamos = [...prestamos];
+          nuevosPrestamos[prestamoIndex] = nuevoPrestamo;
+          setPrestamos(nuevosPrestamos);
+          
+          // Guardar préstamos actualizados en almacenamiento local
+          await storageService.savePrestamos(nuevosPrestamos);
+        }
+        
+        // Guardar el pago en el almacenamiento local
+        const nuevoPago = {
+          id_prestamo: prestamo.id_prestamo,
           monto: monto,
-          fecha: new Date().toISOString(),
-          id_prestamo: prestamoActivo.id_prestamo,
-          saldo_anterior: saldoAnterior,
-          saldo_nuevo: saldoNuevo
-        });
-
-        Alert.alert(
-          '✅ Pago Exitoso',
-          `Prestatario: ${selectedPrestatario.nombre}\nMonto: S/. ${monto.toFixed(2)}\nFecha: ${new Date().toLocaleDateString('es-PE')}\n${wsConnected ? '📡 Notificación enviada al dashboard' : '⚠️ Sin conexión al dashboard'}`
-        );
-
+          fecha_pago: new Date().toISOString(),
+          cobrador_id: user.id,
+          prestatario_nombre: selectedPrestatario.nombre
+        };
+        
+        const pagosActuales = await storageService.getPagos();
+        pagosActuales.push(nuevoPago);
+        await storageService.savePagos(pagosActuales);
+        
+        // Verificar si está completamente pagado
+        const saldoActual = parseFloat(prestamo.saldo_pendiente);
+        if (saldoActual - monto <= 0) {
+          console.log('🎉 [PAGOS] PRÉSTAMO COMPLETADO');
+          Alert.alert(
+            'Préstamo Completado',
+            `El préstamo de ${selectedPrestatario.nombre} ha sido completamente pagado. ¿Deseas archivarlo?`,
+            [
+              { text: 'No', style: 'cancel' },
+              { 
+                text: 'Archivar', 
+                onPress: () => archivarPrestamo(prestamo)
+              }
+            ]
+          );
+        } else {
+          Alert.alert(
+            'Pago Registrado', 
+            `💰 Monto: S/ ${monto.toFixed(2)}\n📅 Fecha: ${new Date().toLocaleDateString()}\n👤 Cliente: ${selectedPrestatario.nombre}`,
+            [{ text: 'OK' }]
+          );
+        }
+        
         setMontoPago('');
         setSelectedPrestatario(null);
-        setTimeout(() => cargarDatos(), 1000);
+        setModalVisible(false);
+        await loadData();
+        console.log('✅ [PAGOS] PROCESO COMPLETADO');
       } else {
-        Alert.alert('Error', response.data.error || 'Error al procesar el pago');
+        const errorMessage = result.error || result.message || 'Error desconocido';
+        console.error('❌ [PAGOS] Error servidor:', errorMessage);
+        Alert.alert('Error', `Error al registrar el pago: ${errorMessage}`);
       }
     } catch (error) {
-      console.error('Error:', error.message);
-      Alert.alert('Error', 'Error de conexión');
+      console.error('❌ [PAGOS] EXCEPCIÓN:', error.message);
+      Alert.alert('Error', 'No se pudo registrar el pago. Revisa la conexión.');
     } finally {
-      setLoading(false);
+      setProcessingPayment(false);
     }
   };
 
-  // Filtrar prestatarios con préstamos activos
-  const prestatariosConPrestamos = prestatarios.filter(prestatario => 
-    prestamos.some(p => 
-      p.id_prestatario === prestatario.id_prestatario && 
-      parseFloat(p.saldo_pendiente) > 0
-    )
-  );
+  const archivarPrestamo = async (prestamo) => {
+    try {
+      console.log('📁 [ARCHIVO] Archivando préstamo:', prestamo.id_prestamo);
+      
+      const result = await mobileApi.makeRequest('api_postgres.php', {
+        method: 'POST',
+        body: JSON.stringify({
+          action: 'archivar_prestamo',
+          id_prestamo: prestamo.id_prestamo
+        })
+      });
 
-  // Filtrar por DNI
-  const prestatariosFiltrados = searchDNI 
-    ? prestatariosConPrestamos.filter(p => p.dni.includes(searchDNI))
-    : prestatariosConPrestamos;
-
-  // Limitar la lista si no se muestra todo
-  const prestatariosMostrados = showAll ? prestatariosFiltrados : prestatariosFiltrados.slice(0, 5);
-
-  const getPrestamoActivo = (prestatario) => {
-    return prestamos.find(p => 
-      p.id_prestatario === prestatario.id_prestatario && 
-      parseFloat(p.saldo_pendiente) > 0
-    );
+      if (result.success) {
+        console.log('✅ [ARCHIVO] Préstamo archivado exitosamente');
+        Alert.alert('Éxito', 'Préstamo archivado correctamente');
+        loadData(); // Recargar datos para actualizar la lista
+      } else {
+        console.error('❌ [ARCHIVO] Error:', result.error);
+        Alert.alert('Error', result.error || 'No se pudo archivar el préstamo');
+      }
+    } catch (error) {
+      console.error('❌ [ARCHIVO] Error de conexión:', error);
+      Alert.alert('Error', 'Error de conexión al archivar préstamo');
+    }
   };
 
-  const formatearMoneda = (monto) => {
-    return `S/. ${parseFloat(monto || 0).toFixed(2)}`;
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadData();
+    setRefreshing(false);
   };
 
-  const formatearFecha = (fecha) => {
-    return new Date(fecha).toLocaleDateString('es-PE');
-  };
-
+  // Pantalla de carga
   if (loading && prestamos.length === 0) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={{ flex: 1 }}>
         <LinearGradient
-          colors={['#667eea', '#764ba2']}
-          style={styles.loadingContainer}
+          colors={['#1e40af', '#3b82f6', '#60a5fa']}
+          style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}
         >
-          <Animated.View style={[styles.loadingContent, { opacity: fadeAnim }]}>
+          <Animated.View 
+            style={{ 
+              opacity: fadeAnim,
+              alignItems: 'center'
+            }}
+          >
             <ActivityIndicator size="large" color="#fff" />
-            <Text style={styles.loadingText}>Cargando datos...</Text>
+            <Text style={{
+              color: 'white',
+              fontSize: 18,
+              marginTop: 16,
+              fontWeight: '500'
+            }}>
+              Cargando datos...
+            </Text>
           </Animated.View>
         </LinearGradient>
       </SafeAreaView>
@@ -314,52 +408,133 @@ export default function PagosScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#f9fafb' }}>
+      {/* Header */}
       <LinearGradient
-        colors={['#667eea', '#764ba2']}
-        style={styles.gradientHeader}
+        colors={['#1e40af', '#3b82f6']}
+        style={{ paddingBottom: 24 }}
       >
-        <Animated.View style={[styles.header, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
-          <Text style={styles.title}>💳 Registrar Pago</Text>
-          <Text style={styles.subtitle}>Selecciona un prestatario y registra su pago</Text>
+        <Animated.View 
+          style={{ 
+            opacity: fadeAnim, 
+            transform: [{ translateY: slideAnim }],
+            paddingHorizontal: 24,
+            paddingTop: 16
+          }}
+        >
+          <Text style={{
+            color: 'white',
+            fontSize: 24,
+            fontWeight: 'bold',
+            marginBottom: 4
+          }}>
+            💳 Registrar Pago
+          </Text>
+          <Text style={{
+            color: 'rgba(255, 255, 255, 0.8)',
+            fontSize: 16
+          }}>
+            Selecciona un prestatario y registra su pago
+          </Text>
         </Animated.View>
       </LinearGradient>
 
-      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={{ flex: 1 }}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
         {/* Buscador */}
-        <Animated.View style={[styles.searchContainer, { opacity: fadeAnim }]}>
-          <LinearGradient
-            colors={['#fff', '#f8f9fa']}
-            style={styles.searchGradient}
-          >
-            <Ionicons name="search" size={20} color="#667eea" style={styles.searchIcon} />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Buscar por DNI..."
-              placeholderTextColor="#adb5bd"
-              value={searchDNI}
-              onChangeText={setSearchDNI}
-              keyboardType="numeric"
-            />
-          </LinearGradient>
+        <Animated.View 
+          style={{ 
+            opacity: fadeAnim,
+            marginHorizontal: 16,
+            marginTop: 16,
+            marginBottom: 24
+          }}
+        >
+          <View style={{
+            backgroundColor: 'white',
+            borderRadius: 16,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 1 },
+            shadowOpacity: 0.05,
+            shadowRadius: 2,
+            elevation: 2,
+            borderWidth: 1,
+            borderColor: '#f3f4f6'
+          }}>
+            <View style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              paddingHorizontal: 16,
+              paddingVertical: 12
+            }}>
+              <Ionicons name="search" size={20} color="#6b7280" />
+              <TextInput
+                style={{
+                  flex: 1,
+                  marginLeft: 12,
+                  color: '#111827',
+                  fontSize: 16
+                }}
+                placeholder="Buscar por DNI..."
+                placeholderTextColor="#9ca3af"
+                value={searchDNI}
+                onChangeText={setSearchDNI}
+                keyboardType="numeric"
+              />
+              {searchDNI.length > 0 && (
+                <TouchableOpacity 
+                  onPress={() => setSearchDNI('')}
+                  style={{ padding: 4 }}
+                >
+                  <Ionicons name="close-circle" size={20} color="#9ca3af" />
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
         </Animated.View>
 
         {/* Lista de Prestatarios */}
-        <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>
+        <Animated.View 
+          style={{ 
+            opacity: fadeAnim,
+            marginHorizontal: 16
+          }}
+        >
+          <View style={{
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: 16
+          }}>
+            <Text style={{
+              color: '#111827',
+              fontSize: 18,
+              fontWeight: '600'
+            }}>
               Prestatarios Activos ({prestatariosConPrestamos.length})
             </Text>
             {prestatariosFiltrados.length > 5 && (
-              <TouchableOpacity onPress={() => setShowAll(!showAll)}>
-                <LinearGradient
-                  colors={['#667eea', '#764ba2']}
-                  style={styles.verTodosGradient}
-                >
-                  <Text style={styles.verTodos}>
-                    {showAll ? 'Ver menos' : `Ver todos (${prestatariosFiltrados.length})`}
-                  </Text>
-                </LinearGradient>
+              <TouchableOpacity 
+                onPress={() => setShowAll(!showAll)}
+                style={{
+                  backgroundColor: '#3b82f6',
+                  paddingHorizontal: 12,
+                  paddingVertical: 4,
+                  borderRadius: 20
+                }}
+              >
+                <Text style={{
+                  color: 'white',
+                  fontSize: 14,
+                  fontWeight: '500'
+                }}>
+                  {showAll ? 'Ver menos' : `Ver todos (${prestatariosFiltrados.length})`}
+                </Text>
               </TouchableOpacity>
             )}
           </View>
@@ -372,630 +547,404 @@ export default function PagosScreen() {
               return (
                 <Animated.View 
                   key={prestatario.id_prestatario}
-                  style={[
-                    styles.prestatarioCard,
-                    { 
-                      opacity: fadeAnim,
-                      transform: [{ translateX: slideAnim }]
-                    }
-                  ]}
+                  style={{
+                    opacity: fadeAnim,
+                    transform: [{ translateX: slideAnim }],
+                    marginBottom: 12
+                  }}
                 >
-                  <LinearGradient
-                    colors={isSelected ? ['#667eea', '#764ba2'] : ['#fff', '#f8f9fa']}
-                    style={[styles.cardGradient, isSelected && styles.selectedCardGradient]}
+                  <TouchableOpacity 
+                    onPress={() => setSelectedPrestatario(isSelected ? null : prestatario)}
+                    style={{
+                      borderRadius: 16,
+                      shadowColor: '#000',
+                      shadowOffset: { width: 0, height: 1 },
+                      shadowOpacity: 0.05,
+                      shadowRadius: 2,
+                      elevation: 2,
+                      borderWidth: 1,
+                      backgroundColor: isSelected ? '#eff6ff' : 'white',
+                      borderColor: isSelected ? '#bfdbfe' : '#f3f4f6'
+                    }}
                   >
-                    <TouchableOpacity 
-                      style={styles.prestatarioInfo}
-                      onPress={() => setSelectedPrestatario(isSelected ? null : prestatario)}
-                    >
-                      <View style={styles.prestatarioHeader}>
-                        <Text style={[styles.prestatarioNombre, isSelected && styles.selectedText]}>
-                          {prestatario.nombre}
-                        </Text>
-                        <Text style={[styles.prestatarioDNI, isSelected && styles.selectedSubText]}>
-                          DNI: {prestatario.dni}
-                        </Text>
+                    <View style={{ padding: 16 }}>
+                      <View style={{
+                        flexDirection: 'row',
+                        justifyContent: 'space-between',
+                        alignItems: 'flex-start',
+                        marginBottom: 12
+                      }}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={{
+                            fontSize: 18,
+                            fontWeight: '600',
+                            color: isSelected ? '#1d4ed8' : '#111827'
+                          }}>
+                            {prestatario.nombre}
+                          </Text>
+                          <Text style={{
+                            fontSize: 14,
+                            color: isSelected ? '#2563eb' : '#6b7280'
+                          }}>
+                            DNI: {prestatario.dni}
+                          </Text>
+                        </View>
+                        <View style={{
+                          width: 24,
+                          height: 24,
+                          borderRadius: 12,
+                          borderWidth: 2,
+                          backgroundColor: isSelected ? '#3b82f6' : 'transparent',
+                          borderColor: isSelected ? '#3b82f6' : '#d1d5db',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}>
+                          {isSelected && (
+                            <Ionicons name="checkmark" size={14} color="white" />
+                          )}
+                        </View>
                       </View>
                       
                       {prestamo && (
-                        <View style={styles.prestamoInfo}>
-                          <Text style={[styles.saldoText, isSelected && styles.selectedSubText]}>
-                            Saldo: <Text style={[styles.saldoMonto, isSelected && styles.selectedAmount]}>
-                              {formatearMoneda(prestamo.saldo_pendiente)}
+                        <View style={{
+                          backgroundColor: '#f9fafb',
+                          borderRadius: 12,
+                          padding: 12
+                        }}>
+                          <View style={{
+                            flexDirection: 'row',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            marginBottom: 8
+                          }}>
+                            <Text style={{
+                              color: '#374151',
+                              fontWeight: '500'
+                            }}>
+                              Monto Prestado:
                             </Text>
-                          </Text>
-                          <Text style={[styles.totalText, isSelected && styles.selectedSubText]}>
-                            Total: {formatearMoneda(prestamo.monto_total)}
-                          </Text>
+                            <Text style={{
+                              color: '#059669',
+                              fontWeight: 'bold'
+                            }}>
+                              S/ {prestamo.monto_inicial}
+                            </Text>
+                          </View>
+                          <View style={{
+                            flexDirection: 'row',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            marginBottom: 8
+                          }}>
+                            <Text style={{
+                              color: '#374151',
+                              fontWeight: '500'
+                            }}>
+                              Saldo Pendiente:
+                            </Text>
+                            <Text style={{
+                              color: '#d97706',
+                              fontWeight: 'bold'
+                            }}>
+                              S/ {prestamo.saldo_pendiente}
+                            </Text>
+                          </View>
+                          <View style={{
+                            flexDirection: 'row',
+                            justifyContent: 'space-between',
+                            alignItems: 'center'
+                          }}>
+                            <Text style={{
+                              color: '#374151',
+                              fontWeight: '500'
+                            }}>
+                              Fecha Préstamo:
+                            </Text>
+                            <Text style={{
+                              color: '#6b7280'
+                            }}>
+                              {new Date(prestamo.fecha_inicio).toLocaleDateString()}
+                            </Text>
+                          </View>
                         </View>
                       )}
-                    </TouchableOpacity>
-
-                    <TouchableOpacity 
-                      style={[styles.detallesButton, isSelected && styles.selectedDetallesButton]}
-                      onPress={() => verDetallesPago(prestatario)}
-                    >
-                      <Ionicons 
-                        name="eye" 
-                        size={16} 
-                        color={isSelected ? "#fff" : "#667eea"} 
-                      />
-                      <Text style={[styles.detallesText, isSelected && styles.selectedDetallesText]}>
-                        Ver
-                      </Text>
-                    </TouchableOpacity>
-                  </LinearGradient>
+                    </View>
+                  </TouchableOpacity>
                 </Animated.View>
               );
             })
           ) : (
-            <Animated.View style={[styles.emptyState, { opacity: fadeAnim }]}>
-              <LinearGradient
-                colors={['#fff', '#f8f9fa']}
-                style={styles.emptyGradient}
-              >
-                <Ionicons name="people-outline" size={50} color="#adb5bd" />
-                <Text style={styles.emptyText}>
-                  {searchDNI ? 'No se encontraron prestatarios con ese DNI' : 'No hay prestatarios con préstamos activos'}
-                </Text>
-              </LinearGradient>
-            </Animated.View>
+            <View style={{
+              backgroundColor: 'white',
+              borderRadius: 16,
+              padding: 32,
+              alignItems: 'center',
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 1 },
+              shadowOpacity: 0.05,
+              shadowRadius: 2,
+              elevation: 2,
+              borderWidth: 1,
+              borderColor: '#f3f4f6'
+            }}>
+              <Ionicons name="search-outline" size={48} color="#9ca3af" />
+              <Text style={{
+                color: '#6b7280',
+                fontSize: 18,
+                fontWeight: '500',
+                marginTop: 16,
+                marginBottom: 8
+              }}>
+                No se encontraron prestatarios
+              </Text>
+              <Text style={{
+                color: '#9ca3af',
+                textAlign: 'center'
+              }}>
+                {searchDNI ? 'Intenta con otro DNI' : 'No hay prestatarios activos'}
+              </Text>
+            </View>
           )}
         </Animated.View>
 
-        {/* Formulario de Pago */}
+        {/* Botón de Registrar Pago */}
         {selectedPrestatario && (
-          <Animated.View style={[styles.pagoSection, { opacity: fadeAnim, transform: [{ scale: fadeAnim }] }]}>
-            <LinearGradient
-              colors={['#fff', '#f8fbff']}
-              style={styles.pagoGradient}
+          <Animated.View 
+            style={{ 
+              opacity: fadeAnim,
+              marginHorizontal: 16,
+              marginTop: 24,
+              marginBottom: 32
+            }}
+          >
+            <TouchableOpacity
+              onPress={() => setModalVisible(true)}
+              style={{
+                borderRadius: 16,
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.15,
+                shadowRadius: 8,
+                elevation: 8
+              }}
             >
-              <View style={styles.selectedHeader}>
-                <LinearGradient
-                  colors={['#667eea', '#764ba2']}
-                  style={styles.selectedHeaderGradient}
-                >
-                  <Text style={styles.selectedTitle}>Prestatario Seleccionado</Text>
-                  <Text style={styles.selectedName}>{selectedPrestatario.nombre}</Text>
-                  <Text style={styles.selectedDNI}>DNI: {selectedPrestatario.dni}</Text>
-                </LinearGradient>
-              </View>
-
-              <View style={styles.montoContainer}>
-                <Text style={styles.montoLabel}>💰 Monto a Pagar (S/.)</Text>
-                <LinearGradient
-                  colors={['#f8f9fa', '#fff']}
-                  style={styles.montoInputGradient}
-                >
-                  <TextInput
-                    style={styles.montoInput}
-                    keyboardType="decimal-pad"
-                    value={montoPago}
-                    onChangeText={setMontoPago}
-                    placeholder="0.00"
-                    placeholderTextColor="#adb5bd"
-                  />
-                </LinearGradient>
-              </View>
-
-              <TouchableOpacity 
-                style={[
-                  styles.pagarButton,
-                  (!montoPago || loading) && styles.pagarButtonDisabled
-                ]}
-                onPress={handlePago}
-                disabled={!montoPago || loading}
+              <LinearGradient
+                colors={['#22c55e', '#16a34a']}
+                style={{
+                  paddingVertical: 16,
+                  paddingHorizontal: 24,
+                  borderRadius: 16
+                }}
               >
-                <LinearGradient
-                  colors={(!montoPago || loading) ? ['#adb5bd', '#6c757d'] : ['#28a745', '#20c997']}
-                  style={styles.pagarButtonGradient}
-                >
-                  {loading ? (
-                    <ActivityIndicator color="#fff" />
-                  ) : (
-                    <>
-                      <Ionicons name="card" size={20} color="#fff" />
-                      <Text style={styles.pagarButtonText}>Procesar Pago</Text>
-                    </>
-                  )}
-                </LinearGradient>
-              </TouchableOpacity>
-            </LinearGradient>
+                <View style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <Ionicons name="card-outline" size={24} color="white" />
+                  <Text style={{
+                    color: 'white',
+                    fontSize: 18,
+                    fontWeight: '600',
+                    marginLeft: 8
+                  }}>
+                    Registrar Pago
+                  </Text>
+                </View>
+              </LinearGradient>
+            </TouchableOpacity>
           </Animated.View>
         )}
-
-        {/* Botón Recargar */}
-        <Animated.View style={{ opacity: fadeAnim }}>
-          <TouchableOpacity 
-            style={styles.recargarButton}
-            onPress={cargarDatos}
-            disabled={loading}
-          >
-            <LinearGradient
-              colors={['#f8f9fa', '#e9ecef']}
-              style={styles.recargarGradient}
-            >
-              <Ionicons name="refresh" size={20} color="#667eea" />
-              <Text style={styles.recargarText}>Actualizar Datos</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        </Animated.View>
       </ScrollView>
 
-      {/* Modal de Detalles de Pagos */}
+      {/* Modal de Pago */}
       <Modal
         animationType="slide"
         transparent={true}
         visible={modalVisible}
         onRequestClose={() => setModalVisible(false)}
       >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>📅 Historial de Pagos</Text>
-              <TouchableOpacity onPress={() => setModalVisible(false)}>
-                <Ionicons name="close" size={24} color="#666" />
-              </TouchableOpacity>
-            </View>
-
+        <View style={{
+          flex: 1,
+          justifyContent: 'flex-end',
+          backgroundColor: 'rgba(0, 0, 0, 0.5)'
+        }}>
+          <View style={{
+            backgroundColor: 'white',
+            borderTopLeftRadius: 24,
+            borderTopRightRadius: 24,
+            padding: 24,
+            maxHeight: 384
+          }}>
+            <View style={{
+              width: 48,
+              height: 4,
+              backgroundColor: '#d1d5db',
+              borderRadius: 2,
+              alignSelf: 'center',
+              marginBottom: 24
+            }} />
+            
+            <Text style={{
+              color: '#111827',
+              fontSize: 20,
+              fontWeight: 'bold',
+              marginBottom: 8,
+              textAlign: 'center'
+            }}>
+              Registrar Pago
+            </Text>
+            
             {selectedPrestatario && (
-              <View style={styles.modalPrestatario}>
-                <Text style={styles.modalNombre}>{selectedPrestatario.nombre}</Text>
-                <Text style={styles.modalDNI}>DNI: {selectedPrestatario.dni}</Text>
+              <View style={{ marginBottom: 16 }}>
+                <Text style={{
+                  color: '#6b7280',
+                  textAlign: 'center',
+                  marginBottom: 8
+                }}>
+                  Para: {selectedPrestatario.nombre}
+                </Text>
+                
+                {/* Mostrar información del préstamo activo */}
+                {(() => {
+                  const prestamo = getPrestamoActivo(selectedPrestatario);
+                  return prestamo ? (
+                    <View style={{
+                      backgroundColor: '#f3f4f6',
+                      borderRadius: 8,
+                      padding: 12,
+                      marginBottom: 8
+                    }}>
+                      <Text style={{ color: '#374151', fontSize: 12, marginBottom: 4 }}>
+                        💰 Saldo Pendiente: <Text style={{ fontWeight: 'bold', color: '#dc2626' }}>
+                          S/. {parseFloat(prestamo.saldo_pendiente).toFixed(2)}
+                        </Text>
+                      </Text>
+                      <Text style={{ color: '#374151', fontSize: 12, marginBottom: 4 }}>
+                        📅 Fecha Inicio: {new Date(prestamo.fecha_inicio).toLocaleDateString()}
+                      </Text>
+                      <Text style={{ color: '#374151', fontSize: 12 }}>
+                        ⏰ Vencimiento: {new Date(prestamo.fecha_ultimo_pago).toLocaleDateString()}
+                      </Text>
+                    </View>
+                  ) : null;
+                })()}
               </View>
             )}
 
-            <ScrollView style={styles.pagosList}>
-              {loadingPagos ? (
-                <ActivityIndicator size="small" color="#4A90E2" />
-              ) : pagosDetalles.length > 0 ? (
-                pagosDetalles.map((pago, index) => (
-                  <View key={index} style={styles.pagoItem}>
-                    <View style={styles.pagoHeader}>
-                      <Ionicons name="checkmark-circle" size={20} color="#28a745" />
-                      <Text style={styles.pagoFecha}>{formatearFecha(pago.fecha)}</Text>
-                    </View>
-                    <Text style={styles.pagoMonto}>{formatearMoneda(pago.monto)}</Text>
-                    <Text style={styles.pagoDia}>Día {index + 1}</Text>
-                  </View>
-                ))
-              ) : (
-                <View style={styles.noPagos}>
-                  <Ionicons name="calendar-outline" size={40} color="#ccc" />
-                  <Text style={styles.noPagosText}>No hay pagos registrados</Text>
+            <View style={{ marginBottom: 24 }}>
+              <Text style={{
+                color: '#374151',
+                fontWeight: '500',
+                marginBottom: 8
+              }}>
+                Monto del Pago
+              </Text>
+              <View style={{
+                backgroundColor: '#f9fafb',
+                borderRadius: 12,
+                borderWidth: 1,
+                borderColor: '#e5e7eb'
+              }}>
+                <View style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  paddingHorizontal: 16,
+                  paddingVertical: 16
+                }}>
+                  <Text style={{
+                    color: '#6b7280',
+                    fontSize: 18,
+                    fontWeight: '500',
+                    marginRight: 8
+                  }}>S/</Text>
+                  <TextInput
+                    style={{
+                      flex: 1,
+                      color: '#111827',
+                      fontSize: 18,
+                      fontWeight: '500'
+                    }}
+                    placeholder="0.00"
+                    placeholderTextColor="#9ca3af"
+                    value={montoPago}
+                    onChangeText={setMontoPago}
+                    keyboardType="numeric"
+                    autoFocus={true}
+                  />
                 </View>
-              )}
-            </ScrollView>
+              </View>
+            </View>
 
-            <TouchableOpacity 
-              style={styles.modalCloseButton}
-              onPress={() => setModalVisible(false)}
-            >
-              <Text style={styles.modalCloseText}>Cerrar</Text>
-            </TouchableOpacity>
+            <View style={{
+              flexDirection: 'row',
+              gap: 12
+            }}>
+              <TouchableOpacity
+                onPress={() => setModalVisible(false)}
+                style={{
+                  flex: 1,
+                  backgroundColor: '#f3f4f6',
+                  paddingVertical: 12,
+                  borderRadius: 12
+                }}
+              >
+                <Text style={{
+                  color: '#374151',
+                  textAlign: 'center',
+                  fontWeight: '500'
+                }}>
+                  Cancelar
+                </Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                onPress={handleRegistrarPago}
+                disabled={processingPayment}
+                style={{
+                  flex: 1,
+                  borderRadius: 12,
+                  opacity: processingPayment ? 0.7 : 1
+                }}
+              >
+                <LinearGradient
+                  colors={['#22c55e', '#16a34a']}
+                  style={{
+                    paddingVertical: 12,
+                    borderRadius: 12
+                  }}
+                >
+                  <View style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    {processingPayment ? (
+                      <>
+                        <ActivityIndicator size="small" color="white" />
+                        <Text style={{
+                          color: 'white',
+                          fontWeight: '500',
+                          marginLeft: 8
+                        }}>
+                          Procesando...
+                        </Text>
+                      </>
+                    ) : (
+                      <Text style={{
+                        color: 'white',
+                        fontWeight: '500'
+                      }}>
+                        Confirmar Pago
+                      </Text>
+                    )}
+                  </View>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#f0f2f5',
-  },
-  container: {
-    flex: 1,
-    padding: 16,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingContent: {
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 15,
-    fontSize: 16,
-    color: '#fff',
-    fontWeight: '600',
-  },
-  gradientHeader: {
-    paddingTop: 20,
-    paddingBottom: 30,
-    paddingHorizontal: 20,
-  },
-  header: {
-    alignItems: 'center',
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  subtitle: {
-    fontSize: 16,
-    color: 'rgba(255,255,255,0.9)',
-    fontWeight: '400',
-    textAlign: 'center',
-  },
-  searchContainer: {
-    marginBottom: 25,
-    marginTop: -15,
-    marginHorizontal: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  searchGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 20,
-    paddingHorizontal: 20,
-    paddingVertical: 18,
-  },
-  searchIcon: {
-    marginRight: 12,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 16,
-    color: '#2c3e50',
-    fontWeight: '500',
-  },
-  section: {
-    marginBottom: 25,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 18,
-    paddingHorizontal: 5,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#2c3e50',
-  },
-  verTodosGradient: {
-    paddingHorizontal: 15,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  verTodos: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 14,
-  },
-  prestatarioCard: {
-    marginBottom: 15,
-    borderRadius: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 15,
-    elevation: 8,
-  },
-  cardGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 20,
-    borderRadius: 20,
-  },
-  selectedCardGradient: {
-    shadowColor: '#667eea',
-    shadowOpacity: 0.3,
-  },
-  prestatarioInfo: {
-    flex: 1,
-  },
-  prestatarioHeader: {
-    marginBottom: 10,
-  },
-  prestatarioNombre: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#2c3e50',
-    marginBottom: 4,
-  },
-  selectedText: {
-    color: '#fff',
-  },
-  prestatarioDNI: {
-    fontSize: 14,
-    color: '#6c757d',
-    fontWeight: '500',
-  },
-  selectedSubText: {
-    color: 'rgba(255,255,255,0.9)',
-  },
-  prestamoInfo: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  saldoText: {
-    fontSize: 14,
-    color: '#6c757d',
-  },
-  saldoMonto: {
-    fontWeight: '700',
-    color: '#dc3545',
-    fontSize: 15,
-  },
-  selectedAmount: {
-    color: '#fff',
-  },
-  totalText: {
-    fontSize: 12,
-    color: '#adb5bd',
-    fontWeight: '500',
-  },
-  detallesButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    marginLeft: 15,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    borderRadius: 15,
-  },
-  selectedDetallesButton: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
-  },
-  detallesText: {
-    color: '#667eea',
-    fontSize: 12,
-    marginLeft: 6,
-    fontWeight: '600',
-  },
-  selectedDetallesText: {
-    color: '#fff',
-  },
-  emptyState: {
-    marginHorizontal: 5,
-    borderRadius: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 15,
-    elevation: 8,
-  },
-  emptyGradient: {
-    alignItems: 'center',
-    padding: 50,
-    borderRadius: 20,
-  },
-  emptyText: {
-    marginTop: 15,
-    color: '#6c757d',
-    fontSize: 16,
-    fontWeight: '500',
-    textAlign: 'center',
-  },
-  pagoSection: {
-    marginBottom: 25,
-    borderRadius: 25,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.15,
-    shadowRadius: 20,
-    elevation: 10,
-  },
-  pagoGradient: {
-    padding: 25,
-    borderRadius: 25,
-  },
-  selectedHeader: {
-    marginBottom: 25,
-  },
-  selectedHeaderGradient: {
-    padding: 20,
-    borderRadius: 20,
-    alignItems: 'center',
-  },
-  selectedTitle: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.9)',
-    marginBottom: 8,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  selectedName: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginBottom: 4,
-  },
-  selectedDNI: {
-    fontSize: 15,
-    color: 'rgba(255,255,255,0.9)',
-    fontWeight: '500',
-  },
-  montoContainer: {
-    marginBottom: 25,
-  },
-  montoLabel: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#2c3e50',
-    marginBottom: 15,
-    textAlign: 'center',
-  },
-  montoInputGradient: {
-    borderRadius: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  montoInput: {
-    padding: 20,
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#2c3e50',
-    textAlign: 'center',
-    backgroundColor: 'transparent',
-  },
-  pagarButton: {
-    borderRadius: 20,
-    shadowColor: '#28a745',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 15,
-    elevation: 10,
-  },
-  pagarButtonGradient: {
-    padding: 20,
-    borderRadius: 20,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  pagarButtonDisabled: {
-    shadowOpacity: 0.1,
-  },
-  pagarButtonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginLeft: 10,
-  },
-  recargarButton: {
-    marginBottom: 25,
-    borderRadius: 15,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  recargarGradient: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 18,
-    borderRadius: 15,
-  },
-  recargarText: {
-    color: '#667eea',
-    fontSize: 16,
-    fontWeight: '600',
-    marginLeft: 10,
-  },
-  modalContainer: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.6)',
-  },
-  modalContent: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 25,
-    borderTopRightRadius: 25,
-    padding: 25,
-    maxHeight: '85%',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-    paddingBottom: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e9ecef',
-  },
-  modalTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#2c3e50',
-  },
-  modalPrestatario: {
-    marginBottom: 25,
-    paddingBottom: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f1f3f4',
-  },
-  modalNombre: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#2c3e50',
-    marginBottom: 4,
-  },
-  modalDNI: {
-    fontSize: 15,
-    color: '#6c757d',
-    fontWeight: '500',
-  },
-  pagosList: {
-    maxHeight: 350,
-  },
-  pagoItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 18,
-    backgroundColor: '#f8f9fa',
-    borderRadius: 12,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: '#e9ecef',
-  },
-  pagoHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  pagoFecha: {
-    marginLeft: 12,
-    fontSize: 15,
-    color: '#2c3e50',
-    fontWeight: '600',
-  },
-  pagoMonto: {
-    fontSize: 17,
-    fontWeight: 'bold',
-    color: '#28a745',
-  },
-  pagoDia: {
-    fontSize: 12,
-    color: '#6c757d',
-    marginLeft: 12,
-    fontWeight: '500',
-  },
-  noPagos: {
-    alignItems: 'center',
-    padding: 50,
-  },
-  noPagosText: {
-    marginTop: 15,
-    color: '#6c757d',
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  modalCloseButton: {
-    backgroundColor: '#4A90E2',
-    borderRadius: 15,
-    padding: 18,
-    alignItems: 'center',
-    marginTop: 20,
-    shadowColor: '#4A90E2',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 4,
-  },
-  modalCloseText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-});

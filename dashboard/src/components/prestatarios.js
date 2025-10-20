@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useSyncDashboard } from '../hooks/useSyncDashboard';
-import '../assets/css/Prestatarios.css';
 
 const Prestatarios = () => {
   const [prestatarios, setPrestatarios] = useState([]);
@@ -34,7 +33,7 @@ const Prestatarios = () => {
 
   const cargarPrestatarios = () => {
     setLoading(true);
-    axios.get('http://192.168.18.22:8080/api_postgres.php?action=prestatarios')
+    axios.get('http://localhost:8080/api_postgres.php?action=prestatarios')
       .then(response => {
         if (Array.isArray(response.data)) {
           setPrestatarios(response.data);
@@ -50,11 +49,11 @@ const Prestatarios = () => {
 
   // Cargar préstamos del prestatario
   const cargarPrestamosPrestatario = (idPrestatario) => {
-    return axios.get('http://192.168.18.22:8080/api_postgres.php?action=prestamos')
+    return axios.get('http://localhost:8080/api_postgres.php?action=prestamos')
       .then(response => {
         if (Array.isArray(response.data)) {
           const prestamos = response.data.filter(prestamo => 
-            prestamo.id_prestatario == idPrestatario
+            prestamo.id_prestatario === idPrestatario
           );
           setPrestamosPrestatario(prestamos);
           return prestamos;
@@ -84,7 +83,7 @@ const Prestatarios = () => {
       
       for (const prestamo of prestamos) {
         try {
-          const response = await axios.get(`http://192.168.18.22:8080/api_postgres.php?action=pagos&id_prestamo=${prestamo.id_prestamo}`);
+          const response = await axios.get(`http://localhost:8080/api_postgres.php?action=pagos&id_prestamo=${prestamo.id_prestamo}`);
           if (Array.isArray(response.data)) {
             const pagosConInfo = response.data.map(pago => ({
               ...pago,
@@ -153,7 +152,7 @@ const Prestatarios = () => {
 
     setLoading(true);
 
-    axios.post('http://192.168.18.22:8080/api_postgres.php?action=prestatarios', formData)
+    axios.post('http://localhost:8080/api_postgres.php?action=prestatarios', formData)
       .then(response => {
         if (response.data.success) {
           setMessage('Prestatario registrado exitosamente');
@@ -233,204 +232,224 @@ const Prestatarios = () => {
   };
 
   return (
-    <div className="prestatarios-container">
-      <div className="prestatarios-header">
-        <h1>Gestión de Prestatarios</h1>
-        <p>Administra los prestatarios del sistema</p>
-      </div>
-
-      {message && (
-        <div className={`alert alert-${messageType}`}>
-          {message}
-        </div>
-      )}
-
-      <div className="prestatarios-content">
-        <div className="form-section">
-          <h3>Registrar Nuevo Prestatario</h3>
-          <form onSubmit={handleSubmit} className="prestatario-form">
-            <div className="form-row">
-              <div className="form-group">
-                <label>DNI *</label>
-                <input
-                  type="text"
-                  name="dni"
-                  value={formData.dni}
-                  onChange={handleInputChange}
-                  placeholder="Ej: 87654321"
-                  maxLength="8"
-                  required
-                />
-                <div className="input-info">8 dígitos</div>
-              </div>
-
-              <div className="form-group">
-                <label>Teléfono *</label>
-                <input
-                  type="text"
-                  name="telefono"
-                  value={formData.telefono}
-                  onChange={handleInputChange}
-                  placeholder="Ej: 987654321"
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="form-group">
-              <label>Nombre Completo *</label>
-              <input
-                type="text"
-                name="nombre"
-                value={formData.nombre}
-                onChange={handleInputChange}
-                placeholder="Ej: Juan Pérez García"
-                required
-              />
-            </div>
-
-            <div className="form-group">
-              <label>Dirección *</label>
-              <input
-                type="text"
-                name="direccion"
-                value={formData.direccion}
-                onChange={handleInputChange}
-                placeholder="Ej: Av. Principal 123"
-                required
-              />
-            </div>
-
-            <div className="form-group">
-              <label>Estado</label>
-              <select
-                name="estado"
-                value={formData.estado}
-                onChange={handleInputChange}
-              >
-                <option value="activo">Activo</option>
-                <option value="inactivo">Inactivo</option>
-              </select>
-            </div>
-
-            <div className="form-actions">
-              <button 
-                type="submit" 
-                className="btn btn-primary"
-                disabled={loading}
-              >
-                {loading ? 'Registrando...' : 'Registrar Prestatario'}
-              </button>
-              <button 
-                type="button" 
-                className="btn btn-secondary"
-                onClick={limpiarFormulario}
-              >
-                Limpiar
-              </button>
-            </div>
-          </form>
+    <div className="min-h-screen bg-gray-50 p-6">
+      <div className="max-w-7xl mx-auto">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Gestión de Prestatarios</h1>
+          <p className="text-gray-600">Administra los prestatarios del sistema</p>
         </div>
 
-        <div className="list-section">
-          <h3>Lista de Prestatarios ({prestatarios.length})</h3>
-          
-          {loading ? (
-            <div className="loading">Cargando prestatarios...</div>
-          ) : prestatarios.length > 0 ? (
-            <div className="table-container">
-              <table className="prestatarios-table">
-                <thead>
-                  <tr>
-                    <th>DNI</th>
-                    <th>Nombre</th>
-                    <th>Teléfono</th>
-                    <th>Dirección</th>
-                    <th>Estado</th>
-                    <th>Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {prestatarios.map(prestatario => (
-                    <tr key={prestatario.id_prestatario}>
-                      <td className="dni-cell">
-                        <strong>{prestatario.dni}</strong>
-                      </td>
-                      <td className="nombre-cell">
-                        <strong>{prestatario.nombre}</strong>
-                      </td>
-                      <td>{prestatario.telefono}</td>
-                      <td>{prestatario.direccion}</td>
-                      <td>
-                        <span className={`estado-badge ${prestatario.estado}`}>
-                          {prestatario.estado}
-                        </span>
-                      </td>
-                      <td>
-                        <button 
-                          className="btn-ver-pagos"
-                          onClick={() => verPagosPrestatario(prestatario)}
-                          title="Ver historial de pagos"
-                        >
-                          📊 Ver Pagos
-                        </button>
-                      </td>
+        {message && (
+          <div className={`mb-6 p-4 rounded-lg border ${
+            messageType === 'success' 
+              ? 'bg-green-50 border-green-200 text-green-800' 
+              : 'bg-red-50 border-red-200 text-red-800'
+          }`}>
+            {message}
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h3 className="text-xl font-semibold text-gray-900 mb-4">Registrar Nuevo Prestatario</h3>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">DNI *</label>
+                  <input
+                    type="text"
+                    name="dni"
+                    value={formData.dni}
+                    onChange={handleInputChange}
+                    placeholder="Ej: 87654321"
+                    maxLength="8"
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  />
+                  <div className="text-xs text-gray-500 mt-1">8 dígitos</div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Teléfono *</label>
+                  <input
+                    type="text"
+                    name="telefono"
+                    value={formData.telefono}
+                    onChange={handleInputChange}
+                    placeholder="Ej: 987654321"
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Nombre Completo *</label>
+                <input
+                  type="text"
+                  name="nombre"
+                  value={formData.nombre}
+                  onChange={handleInputChange}
+                  placeholder="Ej: Juan Pérez García"
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Dirección *</label>
+                <input
+                  type="text"
+                  name="direccion"
+                  value={formData.direccion}
+                  onChange={handleInputChange}
+                  placeholder="Ej: Av. Principal 123"
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Estado</label>
+                <select
+                  name="estado"
+                  value={formData.estado}
+                  onChange={handleInputChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                >
+                  <option value="activo">Activo</option>
+                  <option value="inactivo">Inactivo</option>
+                </select>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button 
+                  type="submit" 
+                  className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={loading}
+                >
+                  {loading ? 'Registrando...' : 'Registrar Prestatario'}
+                </button>
+                <button 
+                  type="button" 
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"
+                  onClick={limpiarFormulario}
+                >
+                  Limpiar
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <h3 className="text-xl font-semibold text-gray-900 mb-4">Lista de Prestatarios ({prestatarios.length})</h3>
+            
+            {loading ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="text-gray-500">Cargando prestatarios...</div>
+              </div>
+            ) : prestatarios.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-gray-200">
+                      <th className="text-left py-3 px-2 font-medium text-gray-700">DNI</th>
+                      <th className="text-left py-3 px-2 font-medium text-gray-700">Nombre</th>
+                      <th className="text-left py-3 px-2 font-medium text-gray-700">Teléfono</th>
+                      <th className="text-left py-3 px-2 font-medium text-gray-700">Dirección</th>
+                      <th className="text-left py-3 px-2 font-medium text-gray-700">Estado</th>
+                      <th className="text-left py-3 px-2 font-medium text-gray-700">Acciones</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <div className="no-data">
-              <p>No hay prestatarios registrados</p>
-            </div>
-          )}
+                  </thead>
+                  <tbody>
+                    {prestatarios.map(prestatario => (
+                      <tr key={prestatario.id_prestatario} className="border-b border-gray-100 hover:bg-gray-50">
+                        <td className="py-3 px-2">
+                          <strong className="text-gray-900">{prestatario.dni}</strong>
+                        </td>
+                        <td className="py-3 px-2">
+                          <strong className="text-gray-900">{prestatario.nombre}</strong>
+                        </td>
+                        <td className="py-3 px-2 text-gray-600">{prestatario.telefono}</td>
+                        <td className="py-3 px-2 text-gray-600">{prestatario.direccion}</td>
+                        <td className="py-3 px-2">
+                          <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                            prestatario.estado === 'activo' 
+                              ? 'bg-green-100 text-green-800' 
+                              : 'bg-red-100 text-red-800'
+                          }`}>
+                            {prestatario.estado}
+                          </span>
+                        </td>
+                        <td className="py-3 px-2">
+                          <button 
+                            className="bg-blue-100 text-blue-700 px-3 py-1 rounded-lg text-sm hover:bg-blue-200 transition-colors"
+                            onClick={() => verPagosPrestatario(prestatario)}
+                            title="Ver historial de pagos"
+                          >
+                            📊 Ver Pagos
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-gray-500">No hay prestatarios registrados</p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
       {/* Modal para ver pagos */}
       {showModalPagos && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <div className="modal-header">
-              <h3>Historial de Pagos - {selectedPrestatario?.nombre}</h3>
-              <button className="modal-close" onClick={cerrarModalPagos}>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h3 className="text-xl font-semibold text-gray-900">Historial de Pagos - {selectedPrestatario?.nombre}</h3>
+              <button 
+                className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
+                onClick={cerrarModalPagos}
+              >
                 ×
               </button>
             </div>
             
-            <div className="modal-body">
-              <div className="pagos-info">
-                <div className="info-grid">
-                  <div className="info-item">
-                    <span className="info-label">DNI:</span>
-                    <span className="info-value">{selectedPrestatario?.dni}</span>
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+              <div className="mb-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <span className="block text-sm font-medium text-gray-700">DNI:</span>
+                    <span className="text-gray-900">{selectedPrestatario?.dni}</span>
                   </div>
-                  <div className="info-item">
-                    <span className="info-label">Teléfono:</span>
-                    <span className="info-value">{selectedPrestatario?.telefono}</span>
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <span className="block text-sm font-medium text-gray-700">Teléfono:</span>
+                    <span className="text-gray-900">{selectedPrestatario?.telefono}</span>
                   </div>
-                  <div className="info-item">
-                    <span className="info-label">Dirección:</span>
-                    <span className="info-value">{selectedPrestatario?.direccion}</span>
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <span className="block text-sm font-medium text-gray-700">Dirección:</span>
+                    <span className="text-gray-900">{selectedPrestatario?.direccion}</span>
                   </div>
                 </div>
                 
                 {prestamosPrestatario.length > 0 && (
-                  <div className="prestamos-stats">
-                    <h4>Resumen de Préstamos</h4>
-                    <div className="stats-grid">
-                      <div className="stat-card">
-                        <span className="stat-number">{calcularEstadisticasPrestamos(prestamosPrestatario).totalPrestamos}</span>
-                        <span className="stat-label">Total Préstamos</span>
+                  <div className="mb-6">
+                    <h4 className="text-lg font-semibold text-gray-900 mb-4">Resumen de Préstamos</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="bg-blue-50 p-4 rounded-lg text-center">
+                        <span className="block text-2xl font-bold text-blue-600">{calcularEstadisticasPrestamos(prestamosPrestatario).totalPrestamos}</span>
+                        <span className="text-sm text-blue-700">Total Préstamos</span>
                       </div>
-                      <div className="stat-card">
-                        <span className="stat-number">{calcularEstadisticasPrestamos(prestamosPrestatario).prestamosActivos}</span>
-                        <span className="stat-label">Préstamos Activos</span>
+                      <div className="bg-green-50 p-4 rounded-lg text-center">
+                        <span className="block text-2xl font-bold text-green-600">{calcularEstadisticasPrestamos(prestamosPrestatario).prestamosActivos}</span>
+                        <span className="text-sm text-green-700">Préstamos Activos</span>
                       </div>
-                      <div className="stat-card">
-                        <span className="stat-number">{calcularEstadisticasPrestamos(prestamosPrestatario).prestamosPagados}</span>
-                        <span className="stat-label">Préstamos Pagados</span>
+                      <div className="bg-gray-50 p-4 rounded-lg text-center">
+                        <span className="block text-2xl font-bold text-gray-600">{calcularEstadisticasPrestamos(prestamosPrestatario).prestamosPagados}</span>
+                        <span className="text-sm text-gray-700">Préstamos Pagados</span>
                       </div>
                     </div>
                   </div>
@@ -438,63 +457,65 @@ const Prestatarios = () => {
               </div>
 
               {loadingPagos ? (
-                <div className="loading">Cargando pagos...</div>
+                <div className="flex items-center justify-center py-8">
+                  <div className="text-gray-500">Cargando pagos...</div>
+                </div>
               ) : pagosPrestatario.length > 0 ? (
                 <>
-                  <div className="estadisticas-pagos">
-                    <h4>Resumen de Pagos</h4>
-                    <div className="stats-grid">
-                      <div className="stat-card">
-                        <span className="stat-number">{calcularEstadisticas(pagosPrestatario).diasPagados}</span>
-                        <span className="stat-label">Días Pagados</span>
+                  <div className="mb-6">
+                    <h4 className="text-lg font-semibold text-gray-900 mb-4">Resumen de Pagos</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="bg-purple-50 p-4 rounded-lg text-center">
+                        <span className="block text-2xl font-bold text-purple-600">{calcularEstadisticas(pagosPrestatario).diasPagados}</span>
+                        <span className="text-sm text-purple-700">Días Pagados</span>
                       </div>
-                      <div className="stat-card">
-                        <span className="stat-number">{formatearMoneda(calcularEstadisticas(pagosPrestatario).totalPagado)}</span>
-                        <span className="stat-label">Total Pagado</span>
+                      <div className="bg-green-50 p-4 rounded-lg text-center">
+                        <span className="block text-2xl font-bold text-green-600">{formatearMoneda(calcularEstadisticas(pagosPrestatario).totalPagado)}</span>
+                        <span className="text-sm text-green-700">Total Pagado</span>
                       </div>
-                      <div className="stat-card">
-                        <span className="stat-number">
+                      <div className="bg-blue-50 p-4 rounded-lg text-center">
+                        <span className="block text-2xl font-bold text-blue-600">
                           {calcularEstadisticas(pagosPrestatario).ultimoPago 
                             ? formatearFecha(calcularEstadisticas(pagosPrestatario).ultimoPago)
                             : 'N/A'}
                         </span>
-                        <span className="stat-label">Último Pago</span>
+                        <span className="text-sm text-blue-700">Último Pago</span>
                       </div>
                     </div>
                   </div>
 
-                  <div className="pagos-list">
-                    <h4>Detalle de Pagos</h4>
-                    <div className="table-container">
-                      <table className="pagos-table">
+                  <div>
+                    <h4 className="text-lg font-semibold text-gray-900 mb-4">Detalle de Pagos</h4>
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
                         <thead>
-                          <tr>
-                            <th>Fecha de Pago</th>
-                            <th>Monto</th>
-                            <th>Préstamo</th>
-                            <th>Estado</th>
+                          <tr className="border-b border-gray-200">
+                            <th className="text-left py-3 px-4 font-medium text-gray-700">Fecha de Pago</th>
+                            <th className="text-left py-3 px-4 font-medium text-gray-700">Monto</th>
+                            <th className="text-left py-3 px-4 font-medium text-gray-700">Préstamo</th>
+                            <th className="text-left py-3 px-4 font-medium text-gray-700">Estado</th>
                           </tr>
                         </thead>
                         <tbody>
                           {pagosPrestatario.map((pago, index) => (
-                            <tr key={index}>
-                              <td>
-                                <div className="fecha-pago">
-                                  <strong>{formatearFecha(pago.fecha)}</strong>
+                            <tr key={index} className="border-b border-gray-100 hover:bg-gray-50">
+                              <td className="py-3 px-4">
+                                <div>
+                                  <strong className="text-gray-900">{formatearFecha(pago.fecha)}</strong>
                                 </div>
                               </td>
-                              <td>
-                                <span className="monto-pago">
+                              <td className="py-3 px-4">
+                                <span className="font-semibold text-green-600">
                                   {formatearMoneda(pago.monto)}
                                 </span>
                               </td>
-                              <td>
-                                <span className="prestamo-id">
+                              <td className="py-3 px-4">
+                                <span className="text-blue-600 font-medium">
                                   Préstamo #{pago.prestamo_id}
                                 </span>
                               </td>
-                              <td>
-                                <span className="estado-pago completado">
+                              <td className="py-3 px-4">
+                                <span className="inline-flex items-center px-2 py-1 text-xs font-medium bg-green-100 text-green-800 rounded-full">
                                   ✅ Completado
                                 </span>
                               </td>
@@ -506,14 +527,17 @@ const Prestatarios = () => {
                   </div>
                 </>
               ) : (
-                <div className="no-pagos">
-                  <p>Este prestatario no tiene pagos registrados</p>
+                <div className="text-center py-8">
+                  <p className="text-gray-500">Este prestatario no tiene pagos registrados</p>
                 </div>
               )}
             </div>
             
-            <div className="modal-footer">
-              <button className="btn btn-secondary" onClick={cerrarModalPagos}>
+            <div className="flex justify-end p-6 border-t border-gray-200">
+              <button 
+                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"
+                onClick={cerrarModalPagos}
+              >
                 Cerrar
               </button>
             </div>

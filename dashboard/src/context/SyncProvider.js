@@ -1,9 +1,9 @@
 // dashboard/src/context/SyncProvider.js
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 import axios from 'axios';
 import { useNotification } from './NotificationProvider';
 
-const API_URL = 'http://192.168.18.22:8080/api_postgres.php';
+const API_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080/api_postgres.php';
 
 const SyncContext = createContext();
 
@@ -233,7 +233,7 @@ export const SyncProvider = ({ children }) => {
       clearTimeout(timer);
       stopSync();
     };
-  }, []); // Array de dependencias vacío para ejecutar solo una vez
+  }, []); // CRÍTICO: Sin dependencias para evitar re-ejecuciones
 
   const value = {
     syncStatus,

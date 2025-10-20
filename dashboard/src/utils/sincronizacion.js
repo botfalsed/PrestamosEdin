@@ -1,7 +1,7 @@
 // dashboard/src/utils/sincronizacion.js
 import axios from 'axios';
 
-const API_URL = 'http://192.168.18.22:8080/api_postgres.php';
+const API_URL = 'http://localhost:8080/api_postgres.php';
 
 class SyncManager {
   constructor() {

@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { MiniProgress, ProgressBar } from '../components/ProgressCharts';
 import { useSyncDashboard } from '../hooks/useSyncDashboard';
-import '../assets/css/ListaPrestamos.css';
 
 const ListaPrestamos = () => {
   const [prestamos, setPrestamos] = useState([]);
@@ -25,7 +24,7 @@ const ListaPrestamos = () => {
 
   const cargarPrestamos = () => {
     setLoading(true);
-    axios.get('http://192.168.18.22:8080/api_postgres.php?action=prestamos')
+    axios.get('http://localhost:8080/api_postgres.php?action=prestamos')
       .then(response => {
         if (Array.isArray(response.data)) {
           setPrestamos(response.data);
@@ -42,7 +41,7 @@ const ListaPrestamos = () => {
 
   const cargarPagosPrestamo = async (idPrestamo) => {
     try {
-      const response = await axios.get(`http://192.168.18.22:8080/api_postgres.php?action=pagos&id_prestamo=${idPrestamo}`);
+      const response = await axios.get(`http://localhost:8080/api_postgres.php?action=pagos&id_prestamo=${idPrestamo}`);
       if (Array.isArray(response.data)) {
         setPagosDetalle(prev => ({
           ...prev,
@@ -114,207 +113,260 @@ const ListaPrestamos = () => {
 
   if (loading) {
     return (
-      <div className="lista-container">
-        <div className="loading">Cargando préstamos...</div>
+      <div className="min-h-screen bg-gray-50 p-6">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-lg text-gray-600">Cargando préstamos...</div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="lista-container">
-      <div className="lista-header">
-        <h1>📋 Lista de Préstamos</h1>
-        <p>Gestión y seguimiento de todos los préstamos registrados</p>
+    <div className="min-h-screen bg-gray-50 p-6">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-800 mb-2">📋 Lista de Préstamos</h1>
+        <p className="text-gray-600">Gestión y seguimiento de todos los préstamos registrados</p>
       </div>
 
       {error && (
-        <div className="alert alert-error">
-          {error}
-          <button onClick={cargarPrestamos} className="btn-reintentar">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 flex items-center justify-between">
+          <span className="text-red-700">{error}</span>
+          <button 
+            onClick={cargarPrestamos} 
+            className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
+          >
             Reintentar
           </button>
         </div>
       )}
 
-      <div className="filtros-container">
-        <div className="filtros">
-          <button 
-            className={`filtro-btn ${filtro === 'todos' ? 'active' : ''}`}
-            onClick={() => setFiltro('todos')}
-          >
-            Todos
-          </button>
-          <button 
-            className={`filtro-btn ${filtro === 'activos' ? 'active' : ''}`}
-            onClick={() => setFiltro('activos')}
-          >
-            Activos
-          </button>
-          <button 
-            className={`filtro-btn ${filtro === 'pagados' ? 'active' : ''}`}
-            onClick={() => setFiltro('pagados')}
-          >
-            Pagados
-          </button>
-        </div>
-        
-        <div className="contador">
-          <span className="total">Total: {prestamosFiltrados.length}</span>
-          <span className="activos">
-            Activos: {prestamos.filter(p => p.saldo_pendiente > 0).length}
-          </span>
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <div className="flex flex-wrap gap-2">
+            <button 
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                filtro === 'todos' 
+                  ? 'bg-blue-600 text-white' 
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+              onClick={() => setFiltro('todos')}
+            >
+              Todos
+            </button>
+            <button 
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                filtro === 'activos' 
+                  ? 'bg-blue-600 text-white' 
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+              onClick={() => setFiltro('activos')}
+            >
+              Activos
+            </button>
+            <button 
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                filtro === 'pagados' 
+                  ? 'bg-blue-600 text-white' 
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+              onClick={() => setFiltro('pagados')}
+            >
+              Pagados
+            </button>
+          </div>
+          
+          <div className="flex gap-4 text-sm">
+            <span className="text-gray-600">
+              <span className="font-medium">Total:</span> {prestamosFiltrados.length}
+            </span>
+            <span className="text-gray-600">
+              <span className="font-medium">Activos:</span> {prestamos.filter(p => p.saldo_pendiente > 0).length}
+            </span>
+          </div>
         </div>
       </div>
 
-      <div className="table-container">
-        <table className="prestamos-table">
-          <thead>
-            <tr>
-              <th>Prestatario</th>
-              <th>Progreso</th>
-              <th>Monto Inicial</th>
-              <th>Interés</th>
-              <th>Monto Total</th>
-              <th>Saldo Pendiente</th>
-              <th>Fecha Inicio</th>
-              <th>Fecha Vencimiento</th>
-              <th>Estado</th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {prestamosFiltrados.length > 0 ? (
-              prestamosFiltrados.map(prestamo => {
-                const estado = getEstadoPrestamo(prestamo);
-                const progreso = calcularProgreso(prestamo);
-                const estaExpandido = prestamoExpandido === prestamo.id_prestamo;
-                
-                return (
-                  <React.Fragment key={prestamo.id_prestamo}>
-                    <tr className={`prestamo-row ${estaExpandido ? 'expanded' : ''}`}>
-                      <td className="prestatario-cell">
-                        <div className="prestatario-info">
-                          <strong>{prestamo.nombre}</strong>
-                          <small>{prestamo.telefono}</small>
-                        </div>
-                      </td>
-                      <td className="progreso-cell">
-                        <MiniProgress 
-                          pagado={progreso.pagado} 
-                          total={progreso.total} 
-                        />
-                        <div className="progreso-text">
-                          {progreso.porcentaje.toFixed(1)}%
-                        </div>
-                      </td>
-                      <td className="monto">{formatearMoneda(prestamo.monto_inicial)}</td>
-                      <td className="interes">{parseFloat(prestamo.tasa_interes).toFixed(1)}%</td>
-                      <td className="monto-total">{formatearMoneda(prestamo.monto_total)}</td>
-                      <td className={`saldo ${prestamo.saldo_pendiente > 0 ? 'pendiente' : 'pagado'}`}>
-                        {formatearMoneda(prestamo.saldo_pendiente)}
-                      </td>
-                      <td>{formatearFecha(prestamo.fecha_inicio)}</td>
-                      <td>{formatearFecha(prestamo.fecha_ultimo_pago)}</td>
-                      <td>
-                        <span 
-                          className="estado-badge"
-                          style={{ backgroundColor: getColorEstado(estado) }}
-                        >
-                          {estado}
-                        </span>
-                      </td>
-                      <td className="acciones-cell">
-                        <button 
-                          className="btn-detalle"
-                          onClick={() => toggleExpandirPrestamo(prestamo)}
-                          title={estaExpandido ? "Ocultar detalles" : "Ver detalles"}
-                        >
-                          {estaExpandido ? '▲' : '▼'} Detalles
-                        </button>
-                      </td>
-                    </tr>
-                    
-                    {/* Fila expandida con detalles */}
-                    {estaExpandido && (
-                      <tr className="detalle-row">
-                        <td colSpan="10">
-                          <div className="detalle-content">
-                            <div className="detalle-header">
-                              <h4>📊 Progreso Detallado del Préstamo</h4>
-                              <span className="periodo-info">
-                                Período: {prestamo.cantidad_periodo} {prestamo.tipo_periodo === 'dias' ? 'días' : 
-                                prestamo.tipo_periodo === 'semanal' ? 'semanas' : 'meses'}
-                              </span>
-                            </div>
-                            
-                            <div className="detalle-grid">
-                              <div className="progreso-completo">
-                                <ProgressBar 
-                                  pagado={progreso.pagado}
-                                  total={progreso.total}
-                                  porcentaje={progreso.porcentaje}
-                                />
-                                <div className="progreso-stats">
-                                  <div className="stat-item">
-                                    <span className="stat-label">Pagado:</span>
-                                    <span className="stat-value success">{formatearMoneda(progreso.pagado)}</span>
-                                  </div>
-                                  <div className="stat-item">
-                                    <span className="stat-label">Pendiente:</span>
-                                    <span className="stat-value warning">{formatearMoneda(prestamo.saldo_pendiente)}</span>
-                                  </div>
-                                  <div className="stat-item">
-                                    <span className="stat-label">Total:</span>
-                                    <span className="stat-value info">{formatearMoneda(progreso.total)}</span>
-                                  </div>
-                                </div>
-                              </div>
-                              
-                              <div className="historial-pagos">
-                                <h5>📅 Historial de Pagos</h5>
-                                {pagosDetalle[prestamo.id_prestamo] ? (
-                                  pagosDetalle[prestamo.id_prestamo].length > 0 ? (
-                                    <div className="pagos-lista">
-                                      {pagosDetalle[prestamo.id_prestamo].map((pago, index) => (
-                                        <div key={index} className="pago-item">
-                                          <span className="pago-fecha">{formatearFecha(pago.fecha)}</span>
-                                          <span className="pago-monto">{formatearMoneda(pago.monto)}</span>
-                                          <span className="pago-saldo">Saldo: {formatearMoneda(pago.saldo_restante)}</span>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  ) : (
-                                    <p className="no-pagos">No se registraron pagos</p>
-                                  )
-                                ) : (
-                                  <div className="loading-pagos">Cargando pagos...</div>
-                                )}
-                              </div>
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-50 border-b border-gray-200">
+              <tr>
+                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Prestatario</th>
+                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Progreso</th>
+                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Monto Inicial</th>
+                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Interés</th>
+                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Monto Total</th>
+                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Saldo Pendiente</th>
+                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha Inicio</th>
+                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha Vencimiento</th>
+                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
+                <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {prestamosFiltrados.length > 0 ? (
+                prestamosFiltrados.map(prestamo => {
+                  const estado = getEstadoPrestamo(prestamo);
+                  const progreso = calcularProgreso(prestamo);
+                  const estaExpandido = prestamoExpandido === prestamo.id_prestamo;
+                  
+                  return (
+                    <React.Fragment key={prestamo.id_prestamo}>
+                      <tr className={`hover:bg-gray-50 transition-colors ${estaExpandido ? 'bg-blue-50' : ''}`}>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div>
+                            <div className="text-sm font-medium text-gray-900">{prestamo.nombre}</div>
+                            <div className="text-sm text-gray-500">{prestamo.telefono}</div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="space-y-2">
+                            <MiniProgress 
+                              pagado={progreso.pagado} 
+                              total={progreso.total} 
+                            />
+                            <div className="text-xs text-gray-600 text-center">
+                              {progreso.porcentaje.toFixed(1)}%
                             </div>
                           </div>
                         </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
+                          {formatearMoneda(prestamo.monto_inicial)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {parseFloat(prestamo.tasa_interes).toFixed(1)}%
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
+                          {formatearMoneda(prestamo.monto_total)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`text-sm font-medium ${
+                            prestamo.saldo_pendiente > 0 ? 'text-orange-600' : 'text-green-600'
+                          }`}>
+                            {formatearMoneda(prestamo.saldo_pendiente)}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {formatearFecha(prestamo.fecha_inicio)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {formatearFecha(prestamo.fecha_ultimo_pago)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span 
+                            className="inline-flex px-2 py-1 text-xs font-semibold rounded-full text-white"
+                            style={{ backgroundColor: getColorEstado(estado) }}
+                          >
+                            {estado}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <button 
+                            className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+                            onClick={() => toggleExpandirPrestamo(prestamo)}
+                            title={estaExpandido ? "Ocultar detalles" : "Ver detalles"}
+                          >
+                            {estaExpandido ? '▲' : '▼'} Detalles
+                          </button>
+                        </td>
                       </tr>
-                    )}
-                  </React.Fragment>
-                );
-              })
-            ) : (
-              <tr>
-                <td colSpan="10" className="no-data">
-                  {prestamos.length === 0 ? 'No hay préstamos registrados' : 'No hay préstamos que coincidan con el filtro'}
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+                      
+                      {/* Fila expandida con detalles */}
+                      {estaExpandido && (
+                        <tr className="bg-blue-50">
+                          <td colSpan="10" className="px-6 py-6">
+                            <div className="space-y-6">
+                              <div className="flex items-center justify-between">
+                                <h4 className="text-lg font-semibold text-gray-800">📊 Progreso Detallado del Préstamo</h4>
+                                <span className="text-sm text-gray-600 bg-white px-3 py-1 rounded-full">
+                                  Período: {prestamo.cantidad_periodo} {prestamo.tipo_periodo === 'dias' ? 'días' : 
+                                  prestamo.tipo_periodo === 'semanal' ? 'semanas' : 'meses'}
+                                </span>
+                              </div>
+                              
+                              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                <div className="space-y-4">
+                                  <ProgressBar 
+                                    pagado={progreso.pagado}
+                                    total={progreso.total}
+                                    porcentaje={progreso.porcentaje}
+                                  />
+                                  <div className="grid grid-cols-3 gap-4">
+                                    <div className="bg-white p-4 rounded-lg border border-gray-200">
+                                      <div className="text-xs text-gray-500 uppercase tracking-wider">Pagado</div>
+                                      <div className="text-lg font-semibold text-green-600">{formatearMoneda(progreso.pagado)}</div>
+                                    </div>
+                                    <div className="bg-white p-4 rounded-lg border border-gray-200">
+                                      <div className="text-xs text-gray-500 uppercase tracking-wider">Pendiente</div>
+                                      <div className="text-lg font-semibold text-orange-600">{formatearMoneda(prestamo.saldo_pendiente)}</div>
+                                    </div>
+                                    <div className="bg-white p-4 rounded-lg border border-gray-200">
+                                      <div className="text-xs text-gray-500 uppercase tracking-wider">Total</div>
+                                      <div className="text-lg font-semibold text-blue-600">{formatearMoneda(progreso.total)}</div>
+                                    </div>
+                                  </div>
+                                </div>
+                                
+                                <div className="bg-white p-4 rounded-lg border border-gray-200">
+                                  <h5 className="text-md font-semibold text-gray-800 mb-4">📅 Historial de Pagos</h5>
+                                  {pagosDetalle[prestamo.id_prestamo] ? (
+                                    pagosDetalle[prestamo.id_prestamo].length > 0 ? (
+                                      <div className="space-y-2 max-h-64 overflow-y-auto">
+                                        {pagosDetalle[prestamo.id_prestamo].map((pago, index) => (
+                                          <div key={index} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                                            <div className="flex flex-col">
+                                              <span className="text-sm font-medium text-gray-900">{formatearFecha(pago.fecha)}</span>
+                                              <span className="text-xs text-gray-500">Saldo: {formatearMoneda(pago.saldo_restante)}</span>
+                                            </div>
+                                            <span className="text-sm font-semibold text-green-600">{formatearMoneda(pago.monto)}</span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    ) : (
+                                      <p className="text-gray-500 text-center py-4">No se registraron pagos</p>
+                                    )
+                                  ) : (
+                                    <div className="text-center py-4">
+                                      <div className="text-gray-500">Cargando pagos...</div>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  );
+                })
+              ) : (
+                <tr>
+                  <td colSpan="10" className="px-6 py-12 text-center">
+                    <div className="text-gray-500">
+                      {prestamos.length === 0 ? 'No hay préstamos registrados' : 'No hay préstamos que coincidan con el filtro'}
+                    </div>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
-      <div className="table-footer">
-        <div className="resumen-total">
-          <strong>Total Prestado:</strong> {formatearMoneda(prestamos.reduce((sum, p) => sum + parseFloat(p.monto_inicial), 0))}
-        </div>
-        <div className="resumen-saldo">
-          <strong>Saldo Pendiente:</strong> {formatearMoneda(prestamos.reduce((sum, p) => sum + parseFloat(p.saldo_pendiente), 0))}
+      <div className="mt-6 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg">
+            <span className="text-gray-700 font-medium">Total Prestado:</span>
+            <span className="text-xl font-bold text-blue-600">
+              {formatearMoneda(prestamos.reduce((sum, p) => sum + parseFloat(p.monto_inicial), 0))}
+            </span>
+          </div>
+          <div className="flex items-center justify-between p-4 bg-orange-50 rounded-lg">
+            <span className="text-gray-700 font-medium">Saldo Pendiente:</span>
+            <span className="text-xl font-bold text-orange-600">
+              {formatearMoneda(prestamos.reduce((sum, p) => sum + parseFloat(p.saldo_pendiente), 0))}
+            </span>
+          </div>
         </div>
       </div>
     </div>

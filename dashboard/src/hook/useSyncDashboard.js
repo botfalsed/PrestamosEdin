@@ -1,6 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import syncService from '../services/syncService';
-import SYNC_CONFIG from '../config/syncConfig';
 
 export const useSyncDashboard = (onCambiosRecibidos = null) => {
   console.log('🔧 useSyncDashboard MOUNTED');
@@ -18,6 +17,10 @@ export const useSyncDashboard = (onCambiosRecibidos = null) => {
 
   const intervalRef = useRef(null);
   const montadoRef = useRef(false);
+  const callbackRef = useRef(onCambiosRecibidos);
+
+  // Actualizar callback ref
+  callbackRef.current = onCambiosRecibidos;
 
   /**
    * Ejecutar sincronización manualmente
@@ -39,9 +42,9 @@ export const useSyncDashboard = (onCambiosRecibidos = null) => {
       }));
 
       // Callback si hay cambios
-      if (resultado.cambios && resultado.cambios.length > 0 && onCambiosRecibidos) {
+      if (resultado.cambios && resultado.cambios.length > 0 && callbackRef.current) {
         console.log('✓ Llamando callback con', resultado.cambios.length, 'cambios');
-        onCambiosRecibidos(resultado.cambios);
+        callbackRef.current(resultado.cambios);
       }
 
       return resultado;
@@ -53,7 +56,7 @@ export const useSyncDashboard = (onCambiosRecibidos = null) => {
         error: error.message
       }));
     }
-  }, [onCambiosRecibidos]);
+  }, []); // Sin dependencias para estabilidad
 
   /**
    * Obtener estadísticas
@@ -72,7 +75,7 @@ export const useSyncDashboard = (onCambiosRecibidos = null) => {
   }, []);
 
   /**
-   * Iniciar sincronización automática cada 5 segundos
+   * Efecto para inicializar polling automático
    * SIN dependencias para evitar loop infinito
    */
   useEffect(() => {
@@ -98,7 +101,7 @@ export const useSyncDashboard = (onCambiosRecibidos = null) => {
         clearInterval(intervalRef.current);
       }
     };
-  }, []); // Array vacío = solo ejecuta una vez al montar
+  }, []); // CRÍTICO: Sin dependencias para evitar re-ejecuciones
 
   return {
     sincronizando: estado.sincronizando,

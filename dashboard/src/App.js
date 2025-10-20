@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { BrowserRouter as Router, Route, Routes, Navigate, useLocation } from 'react-router-dom';
+import { NavigationProvider } from './context/NavigationContext';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import Inicio from './components/inicio';
@@ -20,7 +21,6 @@ import {
   obtenerTotalAlertas, 
   filtrarPrestamosActivos 
 } from './utils/alertas';
-import './App.css';
 
 const HeaderWithData = ({ alertasCount, onAlertasClick }) => {
   const location = useLocation();
@@ -181,7 +181,7 @@ const App = () => {
     if (!isAuthenticated) return;
     
     try {
-      wsRef.current = new WebSocket('ws://192.168.18.22:8081');
+      wsRef.current = new WebSocket('ws://localhost:8081');
       
       wsRef.current.onopen = () => {
         console.log('Dashboard WebSocket conectado');
@@ -296,7 +296,7 @@ const App = () => {
   const cargarAlertasGlobales = async () => {
     setLoadingAlertas(true);
     try {
-      const response = await axios.get('http://192.168.18.22:8080/api_postgres.php?action=prestamos');
+      const response = await axios.get('http://localhost:8080/api_postgres.php?action=prestamos');
       const prestamos = response.data;
       
       const prestamosActivos = filtrarPrestamosActivos(prestamos);
@@ -336,58 +336,46 @@ const App = () => {
   };
 
   if (!mounted) {
-    return <div>Cargando...</div>;
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600 font-medium">Cargando...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
     <NotificationProvider>
       <SyncProvider>
         <Router>
-          <div className="base-dashboard-container">
-            {isAuthenticated && <Sidebar />}
-            {/* Overlay para móvil cuando el sidebar está abierto */}
-            {isAuthenticated && (
-              <div 
-                className="mobile-overlay" 
-                onClick={() => {
-                  document.body.classList.remove('sidebar-open');
-                  window.dispatchEvent(new CustomEvent('sidebar-open-change', { detail: false }));
-                }}
-              />
-            )}
-            {/* Overlay para escritorio cuando el sidebar está abierto */}
-            {isAuthenticated && (
-              <div 
-                className="desktop-overlay" 
-                onClick={() => {
-                  document.body.classList.remove('sidebar-open');
-                  window.dispatchEvent(new CustomEvent('sidebar-open-change', { detail: false }));
-                }}
-              />
-            )}
+          <NavigationProvider>
+            <div className="min-h-screen bg-gray-50 flex">
+              {isAuthenticated && <Sidebar />}
             
             {/* Notificación emergente de pagos */}
             {showNotification && currentNotification && (
-              <div className="payment-notification-overlay">
-                <div className="payment-notification">
-                  <div className="notification-header">
-                    <span className="notification-title">{currentNotification.title}</span>
+              <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 animate-fade-in">
+                <div className="bg-white rounded-xl shadow-2xl max-w-md w-11/12 mx-4 transform transition-all duration-300 animate-bounce-in">
+                  <div className="flex justify-between items-center p-5 border-b border-gray-200">
+                    <span className="text-lg font-semibold text-gray-900">{currentNotification.title}</span>
                     <button 
-                      className="notification-close"
+                      className="w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-all duration-200 text-2xl"
                       onClick={dismissNotification}
                     >
                       ×
                     </button>
                   </div>
-                  <div className="notification-content">
-                    <p className="notification-message">{currentNotification.message}</p>
-                    <p className="notification-time">
+                  <div className="p-5">
+                    <p className="text-gray-700 mb-3 leading-relaxed">{currentNotification.message}</p>
+                    <p className="text-sm text-gray-500 mb-4">
                       {currentNotification.timestamp.toLocaleTimeString('es-PE')}
                     </p>
                     {wsConnected && (
-                      <div className="notification-status">
-                        <span className="status-indicator connected"></span>
-                        <span className="status-text">Sincronizado en tiempo real</span>
+                      <div className="flex items-center gap-2 p-3 bg-blue-50 rounded-lg border-l-4 border-blue-400">
+                        <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                        <span className="text-sm text-blue-700 font-medium">Sincronizado en tiempo real</span>
                       </div>
                     )}
                   </div>
@@ -397,15 +385,21 @@ const App = () => {
             
             {/* Indicador de conexión WebSocket */}
             {isAuthenticated && (
-              <div className={`websocket-status ${wsConnected ? 'connected' : 'disconnected'}`}>
-                <span className="status-dot"></span>
-                <span className="status-label">
+              <div className={`fixed bottom-4 right-4 flex items-center gap-2 px-3 py-2 rounded-full text-sm font-medium shadow-lg z-40 transition-all duration-300 ${
+                wsConnected 
+                  ? 'bg-green-100 text-green-800 border border-green-200' 
+                  : 'bg-red-100 text-red-800 border border-red-200'
+              }`}>
+                <span className={`w-2 h-2 rounded-full ${
+                  wsConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'
+                }`}></span>
+                <span>
                   {wsConnected ? 'Conectado' : 'Desconectado'}
                 </span>
               </div>
             )}
             
-            <main className="base-main-content">
+            <main className="flex-1 flex flex-col min-h-screen">
               {isAuthenticated && (
                 <HeaderWithData 
                   alertasCount={globalAlertas}
@@ -421,6 +415,7 @@ const App = () => {
               />
             </main>
           </div>
+          </NavigationProvider>
         </Router>
       </SyncProvider>
     </NotificationProvider>

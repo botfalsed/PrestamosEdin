@@ -12,6 +12,13 @@ require_once 'db_connect_postgres.php';
 
 $action = $_GET['action'] ?? '';
 
+// Para peticiones POST, también verificar la acción en el cuerpo JSON
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && empty($action)) {
+    $raw_input = file_get_contents('php://input');
+    $data = json_decode($raw_input, true);
+    $action = $data['action'] ?? '';
+}
+
 // LOGIN
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'login') {
     $raw_input = file_get_contents('php://input');
@@ -70,6 +77,66 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'login') {
         echo json_encode(['success' => false, 'error' => 'Usuario o contraseña incorrectos']);
     }
     error_log("=== DEBUG LOGIN END ===");
+    exit();
+}
+
+// LOGIN MÓVIL - Endpoint específico para PrestamosMobile
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'login_mobile') {
+    $raw_input = file_get_contents('php://input');
+    $data = json_decode($raw_input, true);
+    
+    error_log("=== DEBUG LOGIN MOBILE START ===");
+    error_log("Raw input: " . $raw_input);
+    error_log("Decoded data: " . print_r($data, true));
+    
+    $usuario = $data['usuario'] ?? '';
+    $password = $data['password'] ?? '';
+    
+    error_log("Usuario móvil: '$usuario'");
+    error_log("Password móvil: '$password'");
+
+    if (empty($usuario) || empty($password)) {
+        error_log("ERROR MOBILE: Campos vacíos detectados");
+        echo json_encode(['success' => false, 'error' => 'Credenciales incorrectas']);
+        exit();
+    }
+
+    try {
+        $query = 'SELECT id_admin, usuario, nombre_completo, rol FROM admin WHERE usuario = ? AND password = ? AND activo = 1';
+        error_log("Consulta SQL móvil: $query");
+        
+        $stmt = $conn->prepare($query);
+        $stmt->execute([$usuario, $password]);
+        $admin = $stmt->fetch();
+
+        if ($admin) {
+            error_log("LOGIN MÓVIL EXITOSO para usuario: $usuario");
+            
+            // Actualizar última conexión
+            $updateQuery = 'UPDATE admin SET ultima_conexion = CURRENT_TIMESTAMP WHERE id_admin = ?';
+            $updateStmt = $conn->prepare($updateQuery);
+            $updateStmt->execute([$admin['id_admin']]);
+            
+            echo json_encode([
+                'success' => true, 
+                'message' => 'Autenticación exitosa',
+                'user' => [
+                    'id' => $admin['id_admin'],
+                    'usuario' => $admin['usuario'],
+                    'nombre' => $admin['nombre_completo'],
+                    'rol' => $admin['rol']
+                ]
+            ]);
+        } else {
+            error_log("LOGIN MÓVIL FALLIDO para usuario: $usuario");
+            echo json_encode(['success' => false, 'error' => 'Credenciales incorrectas']);
+        }
+    } catch (Exception $e) {
+        error_log("ERROR LOGIN MÓVIL: " . $e->getMessage());
+        echo json_encode(['success' => false, 'error' => 'Error interno del servidor']);
+    }
+    
+    error_log("=== DEBUG LOGIN MOBILE END ===");
     exit();
 }
 
@@ -233,35 +300,46 @@ function importarPrestatario($dni, $nombre, $telefono, $direccion, $estado, $con
 
 // GET REQUESTS
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
-    if ($action === 'prestamos') {
-        $stmt = $conn->prepare('
-            SELECT p.*, pr.nombre, pr.dni, pr.telefono 
-            FROM prestamos p 
-            JOIN prestatarios pr ON p.id_prestatario = pr.id_prestatario 
-            WHERE p.estado != ? OR p.estado IS NULL
-            ORDER BY p.fecha_inicio DESC
-        ');
-        $stmt->execute(['archivado']);
-        echo json_encode($stmt->fetchAll());
-    } 
-    elseif ($action === 'prestatarios') {
-        $stmt = $conn->prepare('SELECT * FROM prestatarios ORDER BY nombre ASC');
-        $stmt->execute();
-        echo json_encode($stmt->fetchAll());
-    } 
-    elseif ($action === 'pagos') {
-        $id_prestamo = $_GET['id_prestamo'] ?? '';
-        if ($id_prestamo) {
+    try {
+        if ($action === 'prestamos') {
+            $stmt = $conn->prepare('
+                SELECT p.*, pr.nombre, pr.dni, pr.telefono 
+                FROM prestamos p 
+                JOIN prestatarios pr ON p.id_prestatario = pr.id_prestatario 
+                WHERE p.estado != ? OR p.estado IS NULL
+                ORDER BY p.fecha_inicio DESC
+            ');
+            $stmt->execute(['archivado']);
+            $result = $stmt->fetchAll();
+            echo json_encode($result);
+            exit();
+        } 
+        elseif ($action === 'prestatarios') {
+            $stmt = $conn->prepare('SELECT * FROM prestatarios ORDER BY nombre ASC');
+            $stmt->execute();
+            $result = $stmt->fetchAll();
+            echo json_encode($result);
+            exit();
+        } 
+        elseif ($action === 'pagos') {
+            $id_prestamo = $_GET['id_prestamo'] ?? '';
+            if (empty($id_prestamo)) {
+                echo json_encode(['success' => false, 'error' => 'ID de préstamo requerido']);
+                exit();
+            }
+            
             $stmt = $conn->prepare('SELECT * FROM pagos WHERE id_prestamo = ? ORDER BY fecha DESC');
             $stmt->execute([$id_prestamo]);
-            echo json_encode($stmt->fetchAll());
-        } else {
-            echo json_encode(['error' => 'ID requerido']);
+            $result = $stmt->fetchAll();
+            echo json_encode(['success' => true, 'data' => $result]);
         }
-    }
-    elseif ($action === 'prestamo') {
-        $id_prestamo = $_GET['id_prestamo'] ?? '';
-        if ($id_prestamo) {
+        elseif ($action === 'prestamo') {
+            $id_prestamo = $_GET['id_prestamo'] ?? '';
+            if (empty($id_prestamo)) {
+                echo json_encode(['success' => false, 'error' => 'ID de préstamo requerido']);
+                exit();
+            }
+            
             $stmt = $conn->prepare('
                 SELECT p.*, pr.nombre, pr.dni, pr.telefono, pr.direccion 
                 FROM prestamos p 
@@ -269,35 +347,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                 WHERE p.id_prestamo = ?
             ');
             $stmt->execute([$id_prestamo]);
-            echo json_encode($stmt->fetch() ?: ['error' => 'No encontrado']);
-        } else {
-            echo json_encode(['error' => 'ID requerido']);
+            $result = $stmt->fetch();
+            
+            if ($result) {
+                echo json_encode(['success' => true, 'data' => $result]);
+            } else {
+                echo json_encode(['success' => false, 'error' => 'Préstamo no encontrado']);
+            }
         }
-    }
-    elseif ($action === 'prestatario-por-dni') {
-        $dni = $_GET['dni'] ?? '';
-        if ($dni) {
+        elseif ($action === 'prestatario-por-dni') {
+            $dni = $_GET['dni'] ?? '';
+            if (empty($dni)) {
+                echo json_encode(['success' => false, 'error' => 'DNI requerido']);
+                exit();
+            }
+            
             $stmt = $conn->prepare('SELECT * FROM prestatarios WHERE dni = ?');
             $stmt->execute([$dni]);
-            echo json_encode($stmt->fetch() ?: ['error' => 'No encontrado']);
-        } else {
-            echo json_encode(['error' => 'DNI requerido']);
+            $result = $stmt->fetch();
+            
+            if ($result) {
+                echo json_encode(['success' => true, 'data' => $result]);
+            } else {
+                echo json_encode(['success' => false, 'error' => 'Prestatario no encontrado']);
+            }
         }
-    }
-    elseif ($action === 'prestamos_archivados') {
-        $stmt = $conn->prepare('
-            SELECT p.*, pr.nombre, pr.dni, pr.telefono 
-            FROM prestamos p 
-            JOIN prestatarios pr ON p.id_prestatario = pr.id_prestatario 
-            WHERE p.estado = ?
-            ORDER BY p.fecha_inicio DESC
-        ');
-        $stmt->execute(['archivado']);
-        echo json_encode($stmt->fetchAll());
-    }
-    elseif ($action === 'pagos_prestatario') {
-        $id_prestatario = $_GET['id_prestatario'] ?? '';
-        if ($id_prestatario) {
+        elseif ($action === 'prestamos_archivados') {
+            $stmt = $conn->prepare('
+                SELECT p.*, pr.nombre, pr.dni, pr.telefono 
+                FROM prestamos p 
+                JOIN prestatarios pr ON p.id_prestatario = pr.id_prestatario 
+                WHERE p.estado = ?
+                ORDER BY p.fecha_inicio DESC
+            ');
+            $stmt->execute(['archivado']);
+            $result = $stmt->fetchAll();
+            echo json_encode($result);
+            exit();
+        }
+        elseif ($action === 'pagos_prestatario') {
+            $id_prestatario = $_GET['id_prestatario'] ?? '';
+            if (empty($id_prestatario)) {
+                echo json_encode(['success' => false, 'error' => 'ID de prestatario requerido']);
+                exit();
+            }
+            
             $stmt = $conn->prepare('
                 SELECT pg.*, p.monto_total, pr.nombre 
                 FROM pagos pg 
@@ -307,257 +401,449 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
                 ORDER BY pg.fecha DESC
             ');
             $stmt->execute([$id_prestatario]);
-            echo json_encode(['success' => true, 'pagos' => $stmt->fetchAll()]);
-        } else {
-            echo json_encode(['success' => false, 'error' => 'ID requerido']);
+            $result = $stmt->fetchAll();
+            echo json_encode(['success' => true, 'pagos' => $result]);
         }
-    }
-    
-    // ===== ENDPOINTS PARA SINCRONIZACIÓN =====
-    elseif ($action === 'sync') {
-        $lastSync = $_GET['last_sync'] ?? '1970-01-01 00:00:00';
-        $limit = intval($_GET['limit'] ?? 100);
-        
-        $stmt = $conn->prepare('
-            SELECT 
-                id_cambio,
-                tabla,
-                id_registro,
-                tipo_accion,
-                datos_cambio,
-                timestamp
-            FROM cambios_sync 
-            WHERE timestamp >= ? AND sincronizado = 0
-            ORDER BY timestamp ASC
-            LIMIT ?
-        ');
-        
-        $stmt->execute([$lastSync, $limit]);
-        $cambios = $stmt->fetchAll();
-        
-        foreach ($cambios as &$cambio) {
-            $cambio['datos_cambio'] = json_decode($cambio['datos_cambio'], true);
+        elseif ($action === 'pagos-historial') {
+            // Obtener todos los pagos con información del prestatario
+            $stmt = $conn->prepare('
+                SELECT 
+                    pg.id_pago,
+                    pg.id_prestamo,
+                    pg.monto,
+                    pg.fecha,
+                    pg.saldo_restante,
+                    p.id_prestatario,
+                    pr.nombre as prestatario_nombre,
+                    pr.dni as prestatario_dni
+                FROM pagos pg 
+                JOIN prestamos p ON pg.id_prestamo = p.id_prestamo 
+                JOIN prestatarios pr ON p.id_prestatario = pr.id_prestatario 
+                ORDER BY pg.fecha DESC
+            ');
+            $stmt->execute();
+            $result = $stmt->fetchAll();
+            echo json_encode(['success' => true, 'data' => $result]);
+            exit();
         }
-        
-        echo json_encode([
-            'success' => true,
-            'cambios' => $cambios,
-            'total' => count($cambios),
-            'timestamp_actual' => date('Y-m-d H:i:s')
-        ]);
+        elseif ($action === 'sync') {
+            $lastSync = $_GET['last_sync'] ?? '1970-01-01 00:00:00';
+            $limit = intval($_GET['limit'] ?? 100);
+            
+            $stmt = $conn->prepare('
+                SELECT 
+                    id_cambio,
+                    tabla,
+                    id_registro,
+                    tipo_accion,
+                    datos_cambio,
+                    timestamp
+                FROM cambios_sync 
+                WHERE timestamp >= ? AND sincronizado = 0
+                ORDER BY timestamp ASC
+                LIMIT ?
+            ');
+            
+            $stmt->execute([$lastSync, $limit]);
+            $cambios = $stmt->fetchAll();
+            
+            foreach ($cambios as &$cambio) {
+                $cambio['datos_cambio'] = json_decode($cambio['datos_cambio'], true);
+            }
+            
+            echo json_encode([
+                 'success' => true,
+                 'cambios' => $cambios,
+                 'total' => count($cambios),
+                 'timestamp_actual' => date('Y-m-d H:i:s')
+             ]);
+             exit();
+         }
+        elseif ($action === 'sync_stats') {
+             $stmt = $conn->prepare('SELECT COUNT(*) as total FROM cambios_sync WHERE sincronizado = 0');
+             $stmt->execute();
+             $stats['cambios_pendientes'] = $stmt->fetch()['total'];
+             
+             $stmt = $conn->prepare('SELECT MAX(timestamp) as ultimo_cambio FROM cambios_sync');
+             $stmt->execute();
+             $stats['ultimo_cambio'] = $stmt->fetch()['ultimo_cambio'];
+             
+             echo json_encode(['success' => true, 'stats' => $stats]);
+             exit();
+         }
+        else {
+            echo json_encode(['success' => false, 'error' => 'Acción no válida: ' . $action]);
+            exit();
+        }
+    } catch (PDOException $e) {
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'error' => 'Error de base de datos: ' . $e->getMessage()]);
+        exit();
+    } catch (Exception $e) {
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'error' => 'Error del servidor: ' . $e->getMessage()]);
+        exit();
     }
-    elseif ($action === 'sync_stats') {
-        $stmt = $conn->prepare('SELECT COUNT(*) as total FROM cambios_sync WHERE sincronizado = 0');
-        $stmt->execute();
-        $stats['cambios_pendientes'] = $stmt->fetch()['total'];
-        
-        $stmt = $conn->prepare('SELECT MAX(timestamp) as ultimo_cambio FROM cambios_sync');
-        $stmt->execute();
-        $stats['ultimo_cambio'] = $stmt->fetch()['ultimo_cambio'];
-        
-        echo json_encode(['success' => true, 'stats' => $stats]);
-    }
-    exit();
 }
 
 // POST REQUESTS
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $data = json_decode(file_get_contents('php://input'), true);
-
-    if ($action === 'prestamos') {
-        $id_prestatario = $data['id_prestatario'];
-        $monto_inicial = $data['monto_inicial'];
-        $tasa_interes = $data['tasa_interes'];
-        $fecha_inicio = $data['fecha_inicio'];
-        $tipo_periodo = $data['tipo_periodo'];
-        $cantidad_periodo = $data['cantidad_periodo'];
-        $fecha_primer_pago = $data['fecha_primer_pago'];
-        $fecha_ultimo_pago = $data['fecha_ultimo_pago'];
+    try {
+        $rawInput = file_get_contents('php://input');
+        if (empty($rawInput)) {
+            echo json_encode(['success' => false, 'error' => 'No se recibieron datos']);
+            exit();
+        }
         
-        $monto_total = $monto_inicial + ($monto_inicial * $tasa_interes / 100);
-        $saldo_pendiente = $monto_total;
-
-        $stmt = $conn->prepare('INSERT INTO prestamos (id_prestatario, monto_inicial, tasa_interes, fecha_inicio, tipo_periodo, cantidad_periodo, fecha_primer_pago, fecha_ultimo_pago, monto_total, saldo_pendiente, estado) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
-        $success = $stmt->execute([$id_prestatario, $monto_inicial, $tasa_interes, $fecha_inicio, $tipo_periodo, $cantidad_periodo, $fecha_primer_pago, $fecha_ultimo_pago, $monto_total, $saldo_pendiente, 'activo']);
-        
-        echo json_encode(['success' => $success, 'message' => $success ? 'Registrado' : 'Error']);
-    } 
-    elseif ($action === 'prestatarios') {
-        $nombre = $data['nombre'];
-        $dni = $data['dni'];
-        $direccion = $data['direccion'];
-        $telefono = $data['telefono'];
-        $estado = $data['estado'] ?? 'activo';
-
-        if (!is_numeric($dni) || strlen($dni) !== 8) {
-            echo json_encode(['success' => false, 'error' => 'DNI debe tener 8 dígitos']);
+        $data = json_decode($rawInput, true);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            echo json_encode(['success' => false, 'error' => 'Datos JSON inválidos: ' . json_last_error_msg()]);
             exit();
         }
 
-        $dni = (int)$dni;
+        if ($action === 'prestamos') {
+            // Validar campos requeridos
+            $required_fields = ['id_prestatario', 'monto_inicial', 'tasa_interes', 'fecha_inicio', 'tipo_periodo', 'cantidad_periodo', 'fecha_primer_pago', 'fecha_ultimo_pago'];
+            foreach ($required_fields as $field) {
+                if (!isset($data[$field]) || empty($data[$field])) {
+                    echo json_encode(['success' => false, 'error' => "Campo requerido faltante: $field"]);
+                    exit();
+                }
+            }
+            
+            $id_prestatario = $data['id_prestatario'];
+            $monto_inicial = $data['monto_inicial'];
+            $tasa_interes = $data['tasa_interes'];
+            $fecha_inicio = $data['fecha_inicio'];
+            $tipo_periodo = $data['tipo_periodo'];
+            $cantidad_periodo = $data['cantidad_periodo'];
+            $fecha_primer_pago = $data['fecha_primer_pago'];
+            $fecha_ultimo_pago = $data['fecha_ultimo_pago'];
+            
+            $monto_total = $monto_inicial + ($monto_inicial * $tasa_interes / 100);
+            $saldo_pendiente = $monto_total;
 
-        $stmt = $conn->prepare('SELECT id_prestatario FROM prestatarios WHERE dni = ?');
-        $stmt->execute([$dni]);
-        
-        if ($stmt->fetch()) {
-            echo json_encode(['success' => false, 'error' => 'DNI ya registrado']);
-            exit();
-        }
+            $stmt = $conn->prepare('INSERT INTO prestamos (id_prestatario, monto_inicial, tasa_interes, fecha_inicio, tipo_periodo, cantidad_periodo, fecha_primer_pago, fecha_ultimo_pago, monto_total, saldo_pendiente, estado) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+            $success = $stmt->execute([$id_prestatario, $monto_inicial, $tasa_interes, $fecha_inicio, $tipo_periodo, $cantidad_periodo, $fecha_primer_pago, $fecha_ultimo_pago, $monto_total, $saldo_pendiente, 'activo']);
+            
+            echo json_encode(['success' => $success, 'message' => $success ? 'Préstamo registrado exitosamente' : 'Error al registrar préstamo']);
+        } 
+        elseif ($action === 'prestatarios') {
+            // Validar campos requeridos
+            $required_fields = ['nombre', 'dni', 'direccion', 'telefono'];
+            foreach ($required_fields as $field) {
+                if (!isset($data[$field]) || empty($data[$field])) {
+                    echo json_encode(['success' => false, 'error' => "Campo requerido faltante: $field"]);
+                    exit();
+                }
+            }
+            
+            $nombre = $data['nombre'];
+            $dni = $data['dni'];
+            $direccion = $data['direccion'];
+            $telefono = $data['telefono'];
+            $estado = $data['estado'] ?? 'activo';
 
-        $stmt = $conn->prepare('INSERT INTO prestatarios (nombre, dni, direccion, telefono, estado) VALUES (?, ?, ?, ?, ?)');
-        $success = $stmt->execute([$nombre, $dni, $direccion, $telefono, $estado]);
-        
-        echo json_encode(['success' => $success, 'message' => 'Registrado']);
-    } 
-    elseif ($action === 'pago') {
-        $id_prestamo = $data['id_prestamo'];
-        $monto_pago = $data['monto_pago'];
+            if (!is_numeric($dni) || strlen($dni) !== 8) {
+                echo json_encode(['success' => false, 'error' => 'DNI debe tener 8 dígitos numéricos']);
+                exit();
+            }
 
-        $stmt = $conn->prepare('SELECT saldo_pendiente FROM prestamos WHERE id_prestamo = ?');
-        $stmt->execute([$id_prestamo]);
-        $prestamo = $stmt->fetch();
+            $dni = (int)$dni;
 
-        if (!$prestamo) {
-            echo json_encode(['success' => false, 'error' => 'Préstamo no encontrado']);
-            exit();
-        }
+            $stmt = $conn->prepare('SELECT id_prestatario FROM prestatarios WHERE dni = ?');
+            $stmt->execute([$dni]);
+            
+            if ($stmt->fetch()) {
+                echo json_encode(['success' => false, 'error' => 'DNI ya registrado en el sistema']);
+                exit();
+            }
 
-        $nuevo_saldo = $prestamo['saldo_pendiente'] - $monto_pago;
+            $stmt = $conn->prepare('INSERT INTO prestatarios (nombre, dni, direccion, telefono, estado) VALUES (?, ?, ?, ?, ?)');
+            $success = $stmt->execute([$nombre, $dni, $direccion, $telefono, $estado]);
+            
+            echo json_encode(['success' => $success, 'message' => $success ? 'Prestatario registrado exitosamente' : 'Error al registrar prestatario']);
+        } 
+        elseif ($action === 'pago') {
+            // Validar campos requeridos - aceptar tanto 'monto' como 'monto_pago'
+            if (!isset($data['id_prestamo']) || (!isset($data['monto_pago']) && !isset($data['monto']))) {
+                echo json_encode(['success' => false, 'error' => 'ID de préstamo y monto de pago son requeridos']);
+                exit();
+            }
+            
+            $id_prestamo = $data['id_prestamo'];
+            $monto_pago = isset($data['monto_pago']) ? $data['monto_pago'] : $data['monto'];
+            $cobrador_id = isset($data['cobrador_id']) ? $data['cobrador_id'] : 1;
 
-        if ($nuevo_saldo < 0) {
-            echo json_encode(['success' => false, 'error' => 'Pago excede saldo']);
-            exit();
-        }
+            if (!is_numeric($monto_pago) || $monto_pago <= 0) {
+                echo json_encode(['success' => false, 'error' => 'El monto del pago debe ser un número positivo']);
+                exit();
+            }
 
-        $conn->beginTransaction();
-
-        try {
-            $stmt = $conn->prepare('INSERT INTO pagos (id_prestamo, monto, fecha) VALUES (?, ?, CURRENT_TIMESTAMP)');
-            $stmt->execute([$id_prestamo, $monto_pago]);
-
-            $stmt = $conn->prepare('UPDATE prestamos SET saldo_pendiente = ? WHERE id_prestamo = ?');
-            $stmt->execute([$nuevo_saldo, $id_prestamo]);
-
-            $conn->commit();
-
+            // Obtener información del préstamo
             $stmt = $conn->prepare('SELECT p.*, pr.nombre FROM prestamos p JOIN prestatarios pr ON p.id_prestatario = pr.id_prestatario WHERE p.id_prestamo = ?');
             $stmt->execute([$id_prestamo]);
-            
-            echo json_encode(['success' => true, 'message' => 'Pago registrado', 'data' => $stmt->fetch()]);
+            $prestamo = $stmt->fetch();
 
-        } catch (Exception $e) {
-            $conn->rollback();
-            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+            if (!$prestamo) {
+                echo json_encode(['success' => false, 'error' => 'Préstamo no encontrado']);
+                exit();
+            }
+
+            // Calcular saldo restante después del pago
+            $saldo_restante = $prestamo['monto_total'] - $monto_pago;
+            
+            // Obtener pagos anteriores para calcular el saldo correcto
+            $stmt = $conn->prepare('SELECT COALESCE(SUM(monto), 0) as total_pagado FROM pagos WHERE id_prestamo = ?');
+            $stmt->execute([$id_prestamo]);
+            $total_pagado = $stmt->fetchColumn();
+            
+            $saldo_restante = $prestamo['monto_total'] - ($total_pagado + $monto_pago);
+
+            if ($saldo_restante < 0) {
+                echo json_encode(['success' => false, 'error' => 'El pago excede el saldo pendiente']);
+                exit();
+            }
+
+            $conn->beginTransaction();
+
+            try {
+                // Insertar el pago con saldo_restante y cobrador_id
+                $stmt = $conn->prepare('INSERT INTO pagos (id_prestamo, monto, fecha, saldo_restante, cobrador_id) VALUES (?, ?, CURRENT_TIMESTAMP, ?, ?)');
+                $stmt->execute([$id_prestamo, $monto_pago, $saldo_restante, $cobrador_id]);
+
+                // ✅ ACTUALIZAR EL SALDO PENDIENTE EN LA TABLA PRESTAMOS
+                $stmt = $conn->prepare('UPDATE prestamos SET saldo_pendiente = ? WHERE id_prestamo = ?');
+                $stmt->execute([$saldo_restante, $id_prestamo]);
+
+                // Actualizar el estado del préstamo si está completamente pagado
+                if ($saldo_restante <= 0) {
+                    $stmt = $conn->prepare('UPDATE prestamos SET estado = ? WHERE id_prestamo = ?');
+                    $stmt->execute(['pagado', $id_prestamo]);
+                }
+
+                $conn->commit();
+
+                // Obtener información actualizada del préstamo
+                $stmt = $conn->prepare('SELECT p.*, pr.nombre FROM prestamos p JOIN prestatarios pr ON p.id_prestatario = pr.id_prestatario WHERE p.id_prestamo = ?');
+                $stmt->execute([$id_prestamo]);
+                $prestamo_actualizado = $stmt->fetch();
+                
+                echo json_encode([
+                    'success' => true, 
+                    'message' => 'Pago registrado exitosamente', 
+                    'data' => [
+                        'success' => true,
+                        'prestamo' => $prestamo_actualizado,
+                        'saldo_restante' => $saldo_restante,
+                        'fecha_pago' => date('Y-m-d H:i:s')
+                    ]
+                ]);
+
+            } catch (Exception $e) {
+                $conn->rollback();
+                echo json_encode(['success' => false, 'error' => 'Error al procesar el pago: ' . $e->getMessage()]);
+            }
         }
-    }
-    elseif ($action === 'archivar_prestamo') {
-        $id_prestamo = $data['id_prestamo'];
+        elseif ($action === 'archivar_prestamo') {
+            if (!isset($data['id_prestamo']) || empty($data['id_prestamo'])) {
+                echo json_encode(['success' => false, 'error' => 'ID de préstamo requerido']);
+                exit();
+            }
+            
+            $id_prestamo = $data['id_prestamo'];
+            $stmt = $conn->prepare('UPDATE prestamos SET estado = ? WHERE id_prestamo = ?');
+            $success = $stmt->execute(['archivado', $id_prestamo]);
+            echo json_encode(['success' => $success, 'message' => $success ? 'Préstamo archivado exitosamente' : 'Error al archivar préstamo']);
+        }
+        elseif ($action === 'reactivar_prestamo') {
+            if (!isset($data['id_prestamo']) || empty($data['id_prestamo'])) {
+                echo json_encode(['success' => false, 'error' => 'ID de préstamo requerido']);
+                exit();
+            }
+            
+            $id_prestamo = $data['id_prestamo'];
         $stmt = $conn->prepare('UPDATE prestamos SET estado = ? WHERE id_prestamo = ?');
-        $success = $stmt->execute(['archivado', $id_prestamo]);
-        echo json_encode(['success' => $success]);
-    }
-    elseif ($action === 'reactivar_prestamo') {
-        $id_prestamo = $data['id_prestamo'];
-        $stmt = $conn->prepare('UPDATE prestamos SET estado = ? WHERE id_prestamo = ?');
-        $success = $stmt->execute(['activo', $id_prestamo]);
-        echo json_encode(['success' => $success]);
-    }
-    elseif ($action === 'mark_synced') {
-        $ids = $data['ids'] ?? [];
-        if (empty($ids)) {
-            echo json_encode(['success' => false]);
-            exit();
+            $success = $stmt->execute(['activo', $id_prestamo]);
+            echo json_encode(['success' => $success, 'message' => $success ? 'Préstamo reactivado exitosamente' : 'Error al reactivar préstamo']);
         }
-        $placeholders = implode(',', array_fill(0, count($ids), '?'));
-        $stmt = $conn->prepare("UPDATE cambios_sync SET sincronizado = 1 WHERE id_cambio IN ($placeholders)");
-        $success = $stmt->execute($ids);
-        echo json_encode(['success' => $success]);
-    }
-    elseif ($action === 'actualizar-admin') {
-        $usuario = $data['usuario'];
-        $password = $data['password'];
-    
-    $stmt = $conn->prepare('UPDATE admin SET password = ? WHERE usuario = ?');
-    $success = $stmt->execute([$password, $usuario]);
-        
-        echo json_encode(['success' => $success, 'message' => $success ? 'Actualizado' : 'Error']);
-    }
-    elseif ($action === 'crear-admin') {
-        $usuario = $data['usuario'];
-        $password = $data['password'];
-        
-        // Verificar si ya existe
-        $stmt = $conn->prepare('SELECT id_admin FROM admin WHERE usuario = ?');
-        $stmt->execute([$usuario]);
-        
-        if ($stmt->fetch()) {
-            echo json_encode(['success' => false, 'error' => 'Usuario ya existe']);
-            exit();
+        elseif ($action === 'mark_synced') {
+            $ids = $data['ids'] ?? [];
+            if (empty($ids)) {
+                echo json_encode(['success' => false, 'error' => 'IDs de cambios requeridos']);
+                exit();
+            }
+            $placeholders = implode(',', array_fill(0, count($ids), '?'));
+            $stmt = $conn->prepare("UPDATE cambios_sync SET sincronizado = 1 WHERE id_cambio IN ($placeholders)");
+            $success = $stmt->execute($ids);
+            echo json_encode(['success' => $success, 'message' => $success ? 'Cambios marcados como sincronizados' : 'Error al marcar cambios']);
         }
+        elseif ($action === 'actualizar-admin') {
+            if (!isset($data['usuario']) || !isset($data['password'])) {
+                echo json_encode(['success' => false, 'error' => 'Usuario y contraseña son requeridos']);
+                exit();
+            }
+            
+            $usuario = $data['usuario'];
+            $password = $data['password'];
         
-        $stmt = $conn->prepare('INSERT INTO admin (usuario, password, rol, activo) VALUES (?, ?, ?, ?)');
-        $success = $stmt->execute([$usuario, $password, 'cobrador', 1]);
-        
-        echo json_encode(['success' => $success, 'message' => $success ? 'Creado' : 'Error']);
+            $stmt = $conn->prepare('UPDATE admin SET password = ? WHERE usuario = ?');
+            $success = $stmt->execute([$password, $usuario]);
+                
+            echo json_encode(['success' => $success, 'message' => $success ? 'Admin actualizado exitosamente' : 'Error al actualizar admin']);
+        }
+        elseif ($action === 'crear-admin') {
+            if (!isset($data['usuario']) || !isset($data['password'])) {
+                echo json_encode(['success' => false, 'error' => 'Usuario y contraseña son requeridos']);
+                exit();
+            }
+            
+            $usuario = $data['usuario'];
+            $password = $data['password'];
+            
+            // Verificar si ya existe
+            $stmt = $conn->prepare('SELECT id_admin FROM admin WHERE usuario = ?');
+            $stmt->execute([$usuario]);
+            
+            if ($stmt->fetch()) {
+                echo json_encode(['success' => false, 'error' => 'Usuario ya existe en el sistema']);
+                exit();
+            }
+            
+            $stmt = $conn->prepare('INSERT INTO admin (usuario, password, rol, activo) VALUES (?, ?, ?, ?)');
+            $success = $stmt->execute([$usuario, $password, 'cobrador', 1]);
+            
+            echo json_encode(['success' => $success, 'message' => $success ? 'Admin creado exitosamente' : 'Error al crear admin']);
+        }
+        else {
+            echo json_encode(['success' => false, 'error' => 'Acción POST no válida: ' . $action]);
+        }
+    } catch (PDOException $e) {
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'error' => 'Error de base de datos: ' . $e->getMessage()]);
+        exit();
+    } catch (Exception $e) {
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'error' => 'Error del servidor: ' . $e->getMessage()]);
+        exit();
     }
     exit();
 }
 
 // PUT REQUESTS
 if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
-    $data = json_decode(file_get_contents('php://input'), true);
-    
-    if ($action === 'prestatarios') {
-        $id_prestatario = $data['id_prestatario'];
-        $nombre = $data['nombre'];
-        $dni = $data['dni'];
-        $direccion = $data['direccion'];
-        $telefono = $data['telefono'];
-        $estado = $data['estado'];
-
-        if (!is_numeric($dni) || strlen($dni) !== 8) {
-            echo json_encode(['success' => false, 'error' => 'DNI inválido']);
+    try {
+        $rawInput = file_get_contents('php://input');
+        if (empty($rawInput)) {
+            echo json_encode(['success' => false, 'error' => 'No se recibieron datos']);
             exit();
         }
-
-        $dni = (int)$dni;
-
-        $stmt = $conn->prepare('SELECT id_prestatario FROM prestatarios WHERE dni = ? AND id_prestatario != ?');
-        $stmt->execute([$dni, $id_prestatario]);
         
-        if ($stmt->fetch()) {
-            echo json_encode(['success' => false, 'error' => 'DNI duplicado']);
+        $data = json_decode($rawInput, true);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            echo json_encode(['success' => false, 'error' => 'Datos JSON inválidos: ' . json_last_error_msg()]);
             exit();
         }
-
-        $stmt = $conn->prepare('UPDATE prestatarios SET nombre = ?, dni = ?, direccion = ?, telefono = ?, estado = ? WHERE id_prestatario = ?');
-        $success = $stmt->execute([$nombre, $dni, $direccion, $telefono, $estado, $id_prestatario]);
         
-        echo json_encode(['success' => $success]);
+        if ($action === 'prestatarios') {
+            $required_fields = ['id_prestatario', 'nombre', 'dni', 'direccion', 'telefono', 'estado'];
+            foreach ($required_fields as $field) {
+                if (!isset($data[$field])) {
+                    echo json_encode(['success' => false, 'error' => "Campo requerido faltante: $field"]);
+                    exit();
+                }
+            }
+            
+            $id_prestatario = $data['id_prestatario'];
+            $nombre = $data['nombre'];
+            $dni = $data['dni'];
+            $direccion = $data['direccion'];
+            $telefono = $data['telefono'];
+            $estado = $data['estado'];
+
+            if (!is_numeric($dni) || strlen($dni) !== 8) {
+                echo json_encode(['success' => false, 'error' => 'DNI debe tener 8 dígitos numéricos']);
+                exit();
+            }
+
+            $dni = (int)$dni;
+
+            $stmt = $conn->prepare('SELECT id_prestatario FROM prestatarios WHERE dni = ? AND id_prestatario != ?');
+            $stmt->execute([$dni, $id_prestatario]);
+            
+            if ($stmt->fetch()) {
+                echo json_encode(['success' => false, 'error' => 'DNI ya registrado por otro prestatario']);
+                exit();
+            }
+
+            $stmt = $conn->prepare('UPDATE prestatarios SET nombre = ?, dni = ?, direccion = ?, telefono = ?, estado = ? WHERE id_prestatario = ?');
+            $success = $stmt->execute([$nombre, $dni, $direccion, $telefono, $estado, $id_prestatario]);
+            
+            echo json_encode(['success' => $success, 'message' => $success ? 'Prestatario actualizado exitosamente' : 'Error al actualizar prestatario']);
+        }
+        else {
+            echo json_encode(['success' => false, 'error' => 'Acción PUT no válida: ' . $action]);
+        }
+    } catch (PDOException $e) {
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'error' => 'Error de base de datos: ' . $e->getMessage()]);
+        exit();
+    } catch (Exception $e) {
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'error' => 'Error del servidor: ' . $e->getMessage()]);
+        exit();
     }
     exit();
 }
 
 // DELETE REQUESTS
 if ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
-    $data = json_decode(file_get_contents('php://input'), true);
-    
-    if ($action === 'prestatarios') {
-        $id_prestatario = $data['id_prestatario'];
-
-        $stmt = $conn->prepare('SELECT COUNT(*) as total FROM prestamos WHERE id_prestatario = ? AND saldo_pendiente > 0');
-        $stmt->execute([$id_prestatario]);
-        $result = $stmt->fetch();
-
-        if ($result['total'] > 0) {
-            echo json_encode(['success' => false, 'error' => 'Tiene préstamos activos']);
+    try {
+        $rawInput = file_get_contents('php://input');
+        if (empty($rawInput)) {
+            echo json_encode(['success' => false, 'error' => 'No se recibieron datos']);
             exit();
         }
-
-        $stmt = $conn->prepare('DELETE FROM prestatarios WHERE id_prestatario = ?');
-        $success = $stmt->execute([$id_prestatario]);
         
-        echo json_encode(['success' => $success]);
+        $data = json_decode($rawInput, true);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            echo json_encode(['success' => false, 'error' => 'Datos JSON inválidos: ' . json_last_error_msg()]);
+            exit();
+        }
+        
+        if ($action === 'prestatarios') {
+            if (!isset($data['id_prestatario']) || empty($data['id_prestatario'])) {
+                echo json_encode(['success' => false, 'error' => 'ID de prestatario requerido']);
+                exit();
+            }
+            
+            $id_prestatario = $data['id_prestatario'];
+
+            $stmt = $conn->prepare('SELECT COUNT(*) as total FROM prestamos WHERE id_prestatario = ? AND saldo_pendiente > 0');
+            $stmt->execute([$id_prestatario]);
+            $result = $stmt->fetch();
+
+            if ($result['total'] > 0) {
+                echo json_encode(['success' => false, 'error' => 'No se puede eliminar: el prestatario tiene préstamos activos con saldo pendiente']);
+                exit();
+            }
+
+            $stmt = $conn->prepare('DELETE FROM prestatarios WHERE id_prestatario = ?');
+            $success = $stmt->execute([$id_prestatario]);
+            
+            echo json_encode(['success' => $success, 'message' => $success ? 'Prestatario eliminado exitosamente' : 'Error al eliminar prestatario']);
+        }
+        else {
+            echo json_encode(['success' => false, 'error' => 'Acción DELETE no válida: ' . $action]);
+        }
+    } catch (PDOException $e) {
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'error' => 'Error de base de datos: ' . $e->getMessage()]);
+        exit();
+    } catch (Exception $e) {
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'error' => 'Error del servidor: ' . $e->getMessage()]);
+        exit();
     }
     exit();
 }
@@ -626,5 +912,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action === 'insertar-admin') {
     exit();
 }
 
-echo json_encode(['error' => 'Acción no válida']);
+// Si llegamos aquí, no se encontró una acción válida
+echo json_encode(['success' => false, 'error' => 'Acción no válida']);
 ?>

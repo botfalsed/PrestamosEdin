@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useSyncContext } from '../context/SyncProvider';
 
 /**
@@ -8,30 +8,38 @@ import { useSyncContext } from '../context/SyncProvider';
  */
 export const useSyncDashboard = (tablas = [], onUpdate = null) => {
   const { registerListener, unregisterListener } = useSyncContext();
+  const callbackRef = useRef(onUpdate);
+  const tablasRef = useRef(tablas);
+
+  // Actualizar refs cuando cambien los parámetros
+  callbackRef.current = onUpdate;
+  tablasRef.current = tablas;
 
   useEffect(() => {
-    if (!tablas.length || !onUpdate) return;
+    if (!tablasRef.current.length || !callbackRef.current) return;
 
-    // Función que maneja los cambios
+    // Función que maneja los cambios - ESTABLE
     const handleChanges = (cambios) => {
       console.log(`🔄 [useSyncDashboard] Cambios detectados:`, cambios);
-      onUpdate(cambios);
+      if (callbackRef.current) {
+        callbackRef.current(cambios);
+      }
     };
 
     // Registrar listeners para cada tabla
-    tablas.forEach(tabla => {
+    tablasRef.current.forEach(tabla => {
       registerListener(tabla, handleChanges);
       console.log(`📡 [useSyncDashboard] Listener registrado para: ${tabla}`);
     });
 
     // Cleanup: desregistrar listeners al desmontar
     return () => {
-      tablas.forEach(tabla => {
+      tablasRef.current.forEach(tabla => {
         unregisterListener(tabla, handleChanges);
         console.log(`🔌 [useSyncDashboard] Listener desregistrado para: ${tabla}`);
       });
     };
-  }, [tablas, onUpdate, registerListener, unregisterListener]);
+  }, []); // CRÍTICO: Sin dependencias para evitar re-registros
 };
 
 export default useSyncDashboard;

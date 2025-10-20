@@ -1,9 +1,7 @@
-// PrestamosMobile/app/utils/sincronizacion.js
-import axios from 'axios';
+// PrestamosMobile/utils/Sincronizacion.js
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { AppState } from 'react-native';
-
-const API_URL = 'http://192.168.18.22:8080/api_postgres.php'; // Nueva API con PostgreSQL
+import { Alert } from 'react-native';
+import mobileApi from '../services/mobileApi';
 
 class SyncManagerMobile {
   constructor() {
@@ -92,13 +90,10 @@ class SyncManagerMobile {
 
       console.log('🔄 [MOBILE] Sincronizando desde:', this.lastSync);
 
-      const response = await axios.get(`${API_URL}?action=sync`, {
-        params: { last_sync: this.lastSync },
-        timeout: 5000 // Timeout de 5 segundos
-      });
+      const result = await mobileApi.syncData();
 
-      if (response.data.success) {
-        const { cambios, timestamp_actual } = response.data;
+      if (result.success && result.data.success) {
+        const { cambios, timestamp_actual } = result.data;
 
         if (cambios.length > 0) {
           console.log(`✅ [MOBILE] ${cambios.length} cambios recibidos`);
@@ -117,10 +112,14 @@ class SyncManagerMobile {
         }
 
         return { success: true, cambios };
+      } else {
+        const errorMessage = result.data?.error || result.error || 'Error desconocido en sincronización';
+        console.error('❌ [MOBILE] Error en respuesta de sync:', errorMessage);
+        return { success: false, error: errorMessage };
       }
     } catch (error) {
       console.error('❌ [MOBILE] Error sincronizando:', error.message);
-      return { success: false, error };
+      return { success: false, error: error.message };
     }
   }
 
@@ -145,10 +144,14 @@ class SyncManagerMobile {
   // Marcar cambios como sincronizados en el servidor
   async marcarComoSincronizados(ids) {
     try {
-      await axios.post(`${API_URL}?action=mark_synced`, { ids });
-      console.log('✓ [MOBILE] Cambios marcados como sincronizados');
+      const result = await mobileApi.markSynced(ids);
+      if (result.success) {
+        console.log('✓ [MOBILE] Cambios marcados como sincronizados');
+      } else {
+        console.error('❌ [MOBILE] Error marcando sincronizados:', result.error);
+      }
     } catch (error) {
-      console.error('[MOBILE] Error marcando sincronizados:', error);
+      console.error('❌ [MOBILE] Error marcando sincronizados:', error);
     }
   }
 

@@ -1,32 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import '../assets/css/header.css';
+import { useNavigation } from '../context/NavigationContext';
 
 const Header = ({ 
   section = "Dashboard", 
   userName = "Usuario", 
   showDateTime = true,
   alertasCount = 0,  
-  onAlertasClick = () => {} 
+  onAlertasClick = () => {},
+  onToggleSidebar = () => {}
 }) => {
-  const [currentDateTime, setCurrentDateTime] = useState('');
-  // Agregar estado para el menú móvil
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const { sidebarOpen, toggleSidebar } = useNavigation();
 
   useEffect(() => {
     if (showDateTime) {
       const updateDateTime = () => {
-        const now = new Date();
-        setCurrentDateTime(now.toLocaleString('es-ES', { 
-          timeZone: 'America/Lima',
-          weekday: 'long',
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit'
-        }));
+        setCurrentTime(new Date());
       };
+
       updateDateTime();
       const interval = setInterval(updateDateTime, 1000);
       return () => clearInterval(interval);
@@ -51,11 +42,11 @@ const Header = ({
     return sectionNames[section.toLowerCase()] || section;
   };
 
-  const getAlertasColor = () => {
-    if (alertasCount === 0) return 'alertas-none';
-    if (alertasCount <= 3) return 'alertas-low';
-    if (alertasCount <= 10) return 'alertas-medium';
-    return 'alertas-high';
+  const getAlertasStyles = () => {
+    if (alertasCount === 0) return 'bg-gray-100 text-gray-600';
+    if (alertasCount <= 3) return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+    if (alertasCount <= 10) return 'bg-orange-100 text-orange-800 border-orange-200';
+    return 'bg-red-100 text-red-800 border-red-200';
   };
 
   const getAlertasText = () => {
@@ -64,59 +55,55 @@ const Header = ({
     return `${alertasCount} alertas`;
   };
 
-  // Sincronizar estado del botón con cambios externos
-  useEffect(() => {
-    const handler = (e) => setIsSidebarOpen(!!e.detail);
-    window.addEventListener('sidebar-open-change', handler);
-    return () => window.removeEventListener('sidebar-open-change', handler);
-  }, []);
-
-  // Toggle de sidebar móvil añadiendo/removiendo clase al body
-  const toggleSidebar = () => {
-    const body = document.body;
-    const open = !body.classList.contains('sidebar-open');
-    body.classList.toggle('sidebar-open', open);
-    setIsSidebarOpen(open);
-    window.dispatchEvent(new CustomEvent('sidebar-open-change', { detail: open }));
-  };
+  // Variables para mostrar en el componente
+  const sectionName = getSectionDisplayName(section);
+  const currentDateTime = currentTime.toLocaleString('es-PE');
 
   return (
-    <header className="base-main-header">
-      <div className="base-header-left">
-        {/* Botón Hamburguesa visible en móvil */}
-        <button 
-          className="hamburger-btn" 
-          aria-label={isSidebarOpen ? 'Cerrar menú' : 'Abrir menú'}
-          onClick={toggleSidebar}
-        >
-          {isSidebarOpen ? '✕' : '☰'}
-        </button>
-        <h1 className="base-section-title">{getSectionDisplayName(section)}</h1>
-        {showDateTime && (
-          <span id="current-date-time" className="base-datetime">
-            {currentDateTime}
-          </span>
-        )}
-      </div>
-      <div className="base-header-right">
-        {/* ✅ CONTADOR DE ALERTAS */}
-        {alertasCount > 0 && (
-          <div 
-            className={`alertas-badge ${getAlertasColor()}`}
-            onClick={onAlertasClick}
-            title="Ver alertas pendientes"
-          >
-            <span className="alertas-icon">🚨</span>
-            <span className="alertas-count">{alertasCount}</span>
-            <span className="alertas-text">{getAlertasText()}</span>
+    <header className="bg-white shadow-lg border-b border-gray-200 sticky top-0 z-50">
+      <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between items-center h-16">
+          {/* Botón hamburguesa y título */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onToggleSidebar}
+              className="inline-flex items-center justify-center w-10 h-10 border-none rounded-lg bg-slate-800 text-white shadow-md hover:bg-slate-700 hover:-translate-y-0.5 hover:shadow-lg active:scale-95 transition-all duration-200 cursor-pointer"
+            >
+              <span className="text-lg">☰</span>
+            </button>
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-800 bg-gradient-to-r from-slate-800 to-blue-600 bg-clip-text text-transparent">
+              {sectionName}
+            </h1>
           </div>
-        )}
-        
-        <div className="base-user-info">
-          <div className="base-user-avatar">
-            {userName.charAt(0).toUpperCase()}
+
+          {/* Fecha y hora */}
+          <div className="hidden md:flex items-center gap-2 text-sm text-gray-600 font-medium">
+            <span className="text-blue-500">🕐</span>
+            <span>{currentDateTime}</span>
           </div>
-          <span className="base-user-name">{userName}</span>
+
+          {/* Alertas y usuario */}
+          <div className="flex items-center gap-4">
+            {/* Botón de alertas */}
+            {alertasCount > 0 && (
+              <button 
+                onClick={onAlertasClick}
+                className="flex items-center gap-2 px-3 py-2 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg border border-red-200 transition-colors duration-200"
+              >
+                <span className="text-lg">🚨</span>
+                <span className="font-semibold">{alertasCount}</span>
+                <span className="text-sm font-medium hidden sm:inline">{getAlertasText()}</span>
+              </button>
+            )}
+            
+            {/* Avatar y nombre de usuario */}
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-full flex items-center justify-center font-semibold text-sm shadow-md">
+                {userName.charAt(0).toUpperCase()}
+              </div>
+              <span className="text-sm font-medium text-gray-700 hidden sm:inline">{userName}</span>
+            </div>
+          </div>
         </div>
       </div>
     </header>

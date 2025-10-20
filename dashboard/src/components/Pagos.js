@@ -11,7 +11,7 @@ import React, { useState, useEffect } from 'react';
 
      useEffect(() => {
        // Cargar lista de préstamos activos desde la API
-       axios.get('http://192.168.18.22:8080/api_postgres.php?action=prestamos')
+       axios.get('http://localhost:8080/api_postgres.php?action=prestamos')
          .then(response => {
            const prestamosActivos = response.data.filter(p => parseFloat(p.saldo_pendiente) > 0);
            setPrestamos(prestamosActivos);
@@ -25,7 +25,7 @@ import React, { useState, useEffect } from 'react';
 
      const handleSubmit = (e) => {
        e.preventDefault();
-       axios.post('http://192.168.18.22:8080/api_postgres.php?action=pago', {
+       axios.post('http://localhost:8080/api_postgres.php?action=pago', {
          id_prestamo: parseInt(formData.id_prestamo),
          monto_pago: parseFloat(formData.monto_pago),
        })

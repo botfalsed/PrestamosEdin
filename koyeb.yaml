@@ -26,7 +26,11 @@ services:
     instance_type: nano
     autoscaling:
       min: 1
-      max: 1
+      max: 2
+    health_check:
+      path: /api_postgres.php
+      port: 80
+      protocol: http
 
   # Servicio Frontend React
   - name: prestamos-frontend
@@ -45,11 +49,15 @@ services:
     instance_type: nano
     autoscaling:
       min: 1
-      max: 1
+      max: 2
+    health_check:
+      path: /
+      port: 80
+      protocol: http
 
-# Base de datos PostgreSQL (usando servicio externo)
+# Base de datos PostgreSQL (usando servicio externo como Neon, Supabase o similar)
 databases:
-  - name: prestamos-db
+  - name: PrestamosEdin
     type: postgresql
     version: "15"
     plan: hobby

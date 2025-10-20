@@ -1,8 +1,8 @@
 // Configuración global de sincronización
 
 const SYNC_CONFIG = {
-  // URL base del API
-  API_BASE_URL: 'http://192.168.18.22:8080/api_postgres.php',
+  // URL base del API (desde variables de entorno o fallback)
+  API_BASE_URL: process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080/api_postgres.php',
   
   // Intervalo de sincronización en milisegundos
   SYNC_INTERVAL: 5000, // 5 segundos

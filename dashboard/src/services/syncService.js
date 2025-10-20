@@ -225,4 +225,5 @@ class SyncService {
 }
 
 // Instancia singleton
-export default new SyncService();
+const syncServiceInstance = new SyncService();
+export default syncServiceInstance;

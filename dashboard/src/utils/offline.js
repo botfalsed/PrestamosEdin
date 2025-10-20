@@ -124,7 +124,7 @@ class OfflineManager {
 
   // Ejecutar pago
   async ejecutarPago(data) {
-    const response = await fetch('http://192.168.18.22:8080/api_postgres.php?action=pago', {
+    const response = await fetch('http://localhost:8080/api_postgres.php?action=pago', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
@@ -134,7 +134,7 @@ class OfflineManager {
 
   // Ejecutar archivar
   async ejecutarArchivar(data) {
-    const response = await fetch('http://192.168.18.22:8080/api_postgres.php?action=archivar_prestamo', {
+    const response = await fetch('http://localhost:8080/api_postgres.php?action=archivar_prestamo', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
@@ -144,7 +144,7 @@ class OfflineManager {
 
   // Ejecutar registrar préstamo
   async ejecutarRegistrarPrestamo(data) {
-    const response = await fetch('http://192.168.18.22:8080/api_postgres.php?action=prestamos', {
+    const response = await fetch('http://localhost:8080/api_postgres.php?action=prestamos', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
@@ -226,7 +226,7 @@ const procesarPago = async () => {
 
   // Si hay conexión, ejecutar normalmente
   try {
-    const response = await axios.post('http://192.168.18.22:8080/api_postgres.php?action=pago', pagoData);
+    const response = await axios.post('http://localhost:8080/api_postgres.php?action=pago', pagoData);
     // ... resto del código
   } catch (error) {
     console.error(error);
