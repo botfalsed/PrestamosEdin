@@ -526,6 +526,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt = $conn->prepare('INSERT INTO prestamos (id_prestatario, monto_inicial, tasa_interes, fecha_inicio, tipo_periodo, cantidad_periodo, fecha_primer_pago, fecha_ultimo_pago, monto_total, saldo_pendiente, estado) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
             $success = $stmt->execute([$id_prestatario, $monto_inicial, $tasa_interes, $fecha_inicio, $tipo_periodo, $cantidad_periodo, $fecha_primer_pago, $fecha_ultimo_pago, $monto_total, $saldo_pendiente, 'activo']);
             
+            // 🚀 EMITIR EVENTO DE TIEMPO REAL si el préstamo se creó exitosamente
+            if ($success) {
+                $prestamo_id = $conn->lastInsertId();
+                require_once 'realtime_helper.php';
+                emitPrestamoCreado($prestamo_id, $id_prestatario, $monto_inicial, $monto_total);
+            }
+            
             echo json_encode(['success' => $success, 'message' => $success ? 'Préstamo registrado exitosamente' : 'Error al registrar préstamo']);
         } 
         elseif ($action === 'prestatarios') {
@@ -628,6 +635,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt = $conn->prepare('SELECT p.*, pr.nombre FROM prestamos p JOIN prestatarios pr ON p.id_prestatario = pr.id_prestatario WHERE p.id_prestamo = ?');
                 $stmt->execute([$id_prestamo]);
                 $prestamo_actualizado = $stmt->fetch();
+                
+                // 🚀 EMITIR EVENTO DE TIEMPO REAL (sin afectar funcionalidad principal)
+                require_once 'realtime_helper.php';
+                emitPagoRegistrado($prestamo_actualizado, $monto_pago, $saldo_restante);
                 
                 echo json_encode([
                     'success' => true, 

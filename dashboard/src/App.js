@@ -15,6 +15,8 @@ import Login from './components/Login';
 import Configuracion from './components/Configuracion';
 import { SyncProvider } from './context/SyncProvider';
 import { NotificationProvider } from './context/NotificationProvider';
+import RealtimeNotifications from './components/RealtimeNotifications';
+import useRealtimeUpdates from './hooks/useRealtimeUpdates';
 import axios from 'axios';
 import { 
   calcularAlertasVencimientos, 
@@ -130,12 +132,44 @@ const App = () => {
   const [loadingAlertas, setLoadingAlertas] = useState(false);
   const [mounted, setMounted] = useState(false);
   
-  // WebSocket states
+  // WebSocket states (legacy - mantener para compatibilidad)
   const wsRef = useRef(null);
   const [wsConnected, setWsConnected] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [showNotification, setShowNotification] = useState(false);
   const [currentNotification, setCurrentNotification] = useState(null);
+
+  // Nuevo sistema de tiempo real con Socket.io
+  const {
+    connectionStatus,
+    notifications: realtimeNotifications,
+    removeNotification,
+    clearAllNotifications,
+    isConnected: socketConnected
+  } = useRealtimeUpdates({
+    onPagoRegistrado: (data) => {
+      console.log('💰 Pago registrado en tiempo real:', data);
+      // Actualizar alertas globales
+      setTimeout(() => {
+        cargarAlertasGlobales();
+      }, 1000);
+    },
+    onPrestamoCreado: (data) => {
+      console.log('📋 Préstamo creado en tiempo real:', data);
+      // Actualizar alertas globales
+      setTimeout(() => {
+        cargarAlertasGlobales();
+      }, 1000);
+    },
+    onPrestamoActualizado: (data) => {
+      console.log('📝 Préstamo actualizado en tiempo real:', data);
+      // Actualizar alertas globales
+      setTimeout(() => {
+        cargarAlertasGlobales();
+      }, 1000);
+    },
+    autoConnect: isAuthenticated
+  });
 
   // Verificar autenticación al cargar
   useEffect(() => {
@@ -354,7 +388,15 @@ const App = () => {
             <div className="min-h-screen bg-gray-50 flex">
               {isAuthenticated && <Sidebar />}
             
-            {/* Notificación emergente de pagos */}
+            {/* Nuevo sistema de notificaciones en tiempo real */}
+            <RealtimeNotifications
+              notifications={realtimeNotifications}
+              onRemove={removeNotification}
+              onClearAll={clearAllNotifications}
+              connectionStatus={connectionStatus}
+            />
+            
+            {/* Notificación emergente de pagos (legacy - mantener para compatibilidad) */}
             {showNotification && currentNotification && (
               <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 animate-fade-in">
                 <div className="bg-white rounded-xl shadow-2xl max-w-md w-11/12 mx-4 transform transition-all duration-300 animate-bounce-in">
@@ -383,19 +425,11 @@ const App = () => {
               </div>
             )}
             
-            {/* Indicador de conexión WebSocket */}
-            {isAuthenticated && (
-              <div className={`fixed bottom-4 right-4 flex items-center gap-2 px-3 py-2 rounded-full text-sm font-medium shadow-lg z-40 transition-all duration-300 ${
-                wsConnected 
-                  ? 'bg-green-100 text-green-800 border border-green-200' 
-                  : 'bg-red-100 text-red-800 border border-red-200'
-              }`}>
-                <span className={`w-2 h-2 rounded-full ${
-                  wsConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'
-                }`}></span>
-                <span>
-                  {wsConnected ? 'Conectado' : 'Desconectado'}
-                </span>
+            {/* Indicador de conexión WebSocket (legacy - mantener para compatibilidad) */}
+            {isAuthenticated && wsConnected && (
+              <div className="fixed bottom-4 left-4 flex items-center gap-2 px-3 py-2 rounded-full text-sm font-medium shadow-lg z-40 transition-all duration-300 bg-blue-100 text-blue-800 border border-blue-200">
+                <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
+                <span>Legacy WS</span>
               </div>
             )}
             

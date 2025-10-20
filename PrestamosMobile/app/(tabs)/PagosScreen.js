@@ -20,6 +20,7 @@ import mobileApi from '../../services/mobileApi';
 import storageService from '../../services/storageService';
 import reportService from '../../services/reportService';
 import { useStats } from '../../contexts/StatsContext';
+import useRealtimeUpdates from '../../hooks/useRealtimeUpdates';
 
 const { width, height } = Dimensions.get('window');
 
@@ -39,11 +40,35 @@ export default function PagosScreen() {
   // Hook de estadísticas
   const { updateStatsAfterPayment } = useStats();
 
+  // Hook de actualizaciones en tiempo real
+  const {
+    connectionStatus,
+    lastUpdate
+  } = useRealtimeUpdates({
+    autoConnect: true,
+    reconnectOnForeground: true,
+    onPagoRegistrado: (data) => {
+      console.log('🎯 [PagosScreen] Pago registrado recibido:', data);
+      // Recargar datos cuando se registra un pago
+      loadData();
+    },
+    onPrestamoCreado: (data) => {
+      console.log('🎯 [PagosScreen] Préstamo creado recibido:', data);
+      // Recargar datos cuando se crea un préstamo
+      loadData();
+    },
+    onPrestamoActualizado: (data) => {
+      console.log('🎯 [PagosScreen] Préstamo actualizado recibido:', data);
+      // Recargar datos cuando se actualiza un préstamo
+      loadData();
+    }
+  });
+
   // Animaciones
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
 
-  // WebSocket
+  // WebSocket (legacy - mantenido para compatibilidad)
   const ws = useRef(null);
 
   useEffect(() => {
