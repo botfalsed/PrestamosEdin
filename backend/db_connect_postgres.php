@@ -1,13 +1,9 @@
 <?php
-// Configuración de conexión PostgreSQL
-// Base de datos: PrestamosEdin (LOCAL)
-// Migración desde MySQL a PostgreSQL
-
-$host = 'localhost';
-$user = 'postgres';
-$password = 'solsolperez';
-$database = 'PrestamosEdin';
-$port = 5432;
+$host = $_ENV['DB_HOST'] ?? 'localhost';
+$user = $_ENV['DB_USER'] ?? 'postgres';
+$password = $_ENV['DB_PASSWORD'] ?? 'solsolperez';
+$database = $_ENV['DB_NAME'] ?? 'PrestamosEdin';
+$port = $_ENV['DB_PORT'] ?? 5432;
 
 try {
     // Crear conexión PDO para PostgreSQL

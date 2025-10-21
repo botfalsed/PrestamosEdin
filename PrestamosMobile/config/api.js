@@ -2,11 +2,14 @@
 // Esta configuración debe coincidir con la del Dashboard para usar la misma base de datos
 
 const API_CONFIG = {
-  // URL base del backend (desde variables de entorno o fallback)
-  BASE_URL: process.env.API_BASE_URL || 'http://localhost:8080/api_postgres.php',
+  // URL base del backend (Railway en producción)
+  BASE_URL: process.env.API_BASE_URL || 'https://prestamosedin-production.up.railway.app/api_postgres.php',
   
   // Configuración para desarrollo local
   DEV_URL: 'http://localhost:8080/api_postgres.php',
+  
+  // Configuración para Railway (producción)
+  PRODUCTION_URL: 'https://prestamosedin-production.up.railway.app/api_postgres.php',
   
   // Configuración para red local (si necesitas acceder desde dispositivo físico)
   // Cambia esta IP por la IP de tu computadora en la red local
@@ -32,16 +35,15 @@ const API_CONFIG = {
 
 // Función para obtener la URL correcta según el entorno
 export const getApiUrl = () => {
-  // IMPORTANTE: Para que PrestamosMobile use la misma base de datos que el Dashboard,
-  // debe apuntar a localhost:8080 (donde está corriendo el backend PHP)
+  // IMPORTANTE: Ahora usa Railway en producción para la misma base de datos
   
-  // Prioridad: Variable de entorno > Configuración de desarrollo
+  // Prioridad: Variable de entorno > Configuración de producción Railway
   if (process.env.API_BASE_URL) {
     return process.env.API_BASE_URL;
   }
   
-  // Fallback a configuración de desarrollo (solo la base sin el archivo PHP)
-  return 'http://localhost:8080';
+  // Usar Railway en producción por defecto
+  return 'https://prestamosedin-production.up.railway.app';
 };
 
 // Función para construir URL completa con endpoint
