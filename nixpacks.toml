@@ -1,8 +1,8 @@
 [phases.setup]
-nixPkgs = ['php81', 'php81Extensions.pdo_pgsql', 'php81Extensions.mbstring']
+nixPkgs = ['php81', 'php81Extensions.pdo_pgsql', 'php81Extensions.mbstring', 'php81Packages.composer']
 
 [phases.build]
-cmds = ['composer install --no-dev --optimize-autoloader']
+cmds = ['composer install --no-dev --optimize-autoloader --ignore-platform-reqs']
 
 [start]
 cmd = 'php -S 0.0.0.0:$PORT index.php'
