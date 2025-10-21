@@ -52,12 +52,13 @@ if (strpos($path, '/api') === 0 || strpos($path, 'api_postgres.php') !== false) 
             // Servir el archivo HTML del dashboard
             readfile(__DIR__ . '/build/index.html');
         } else {
-            // Si no hay dashboard, mostrar mensaje de error
+            // Si no hay dashboard, mostrar mensaje de error más claro
             header('Content-Type: application/json');
             http_response_code(404);
             echo json_encode([
-                'error' => 'Dashboard not built. Please run npm run build in the dashboard directory.',
-                'message' => 'Dashboard file is missing'
+                'error' => 'Panel de control no encontrado',
+                'message' => 'El panel de control no ha sido construido correctamente. Contacte al administrador.',
+                'technical_details' => 'Build directory or index.html file is missing'
             ]);
         }
     } else {
