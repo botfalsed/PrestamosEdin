@@ -61,47 +61,47 @@ const Header = ({
 
   return (
     <header className="bg-white shadow-lg border-b border-gray-200 sticky top-0 z-50">
-      <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
+      <div className="max-w-full mx-auto px-2 sm:px-4 lg:px-8">
+        <div className="flex justify-between items-center h-14 sm:h-16">
           {/* Botón hamburguesa y título */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2 flex-1 min-w-0">
             <button
               onClick={onToggleSidebar}
-              className="inline-flex items-center justify-center w-10 h-10 border-none rounded-lg bg-slate-800 text-white shadow-md hover:bg-slate-700 hover:-translate-y-0.5 hover:shadow-lg active:scale-95 transition-all duration-200 cursor-pointer"
+              className="inline-flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 border-none rounded-lg bg-slate-800 text-white shadow-md hover:bg-slate-700 hover:-translate-y-0.5 hover:shadow-lg active:scale-95 transition-all duration-200 cursor-pointer flex-shrink-0"
             >
-              <span className="text-lg">☰</span>
+              <span className="text-sm sm:text-lg">☰</span>
             </button>
-            <h1 className="text-xl sm:text-2xl font-bold text-slate-800 bg-gradient-to-r from-slate-800 to-blue-600 bg-clip-text text-transparent">
+            <h1 className="text-sm sm:text-xl lg:text-2xl font-bold text-slate-800 bg-gradient-to-r from-slate-800 to-blue-600 bg-clip-text text-transparent truncate">
               {sectionName}
             </h1>
           </div>
 
-          {/* Fecha y hora */}
-          <div className="hidden md:flex items-center gap-2 text-sm text-gray-600 font-medium">
+          {/* Fecha y hora - Oculta en móvil pequeño */}
+          <div className="hidden lg:flex items-center gap-2 text-sm text-gray-600 font-medium mx-4">
             <span className="text-blue-500">🕐</span>
             <span>{currentDateTime}</span>
           </div>
 
           {/* Alertas y usuario */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-1 sm:gap-2 lg:gap-4 flex-shrink-0">
             {/* Botón de alertas */}
             {alertasCount > 0 && (
               <button 
                 onClick={onAlertasClick}
-                className="flex items-center gap-2 px-3 py-2 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg border border-red-200 transition-colors duration-200"
+                className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-2 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg border border-red-200 transition-colors duration-200"
               >
-                <span className="text-lg">🚨</span>
-                <span className="font-semibold">{alertasCount}</span>
-                <span className="text-sm font-medium hidden sm:inline">{getAlertasText()}</span>
+                <span className="text-sm sm:text-lg">🚨</span>
+                <span className="font-semibold text-xs sm:text-sm">{alertasCount}</span>
+                <span className="text-xs font-medium hidden md:inline">{getAlertasText()}</span>
               </button>
             )}
             
             {/* Avatar y nombre de usuario */}
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-full flex items-center justify-center font-semibold text-sm shadow-md">
+            <div className="flex items-center gap-1 sm:gap-3">
+              <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-full flex items-center justify-center font-semibold text-xs sm:text-sm shadow-md">
                 {userName.charAt(0).toUpperCase()}
               </div>
-              <span className="text-sm font-medium text-gray-700 hidden sm:inline">{userName}</span>
+              <span className="text-xs sm:text-sm font-medium text-gray-700 hidden md:inline max-w-20 lg:max-w-none truncate">{userName}</span>
             </div>
           </div>
         </div>

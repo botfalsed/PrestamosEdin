@@ -1,4 +1,4 @@
-# Configuración para PrestamosEdin en Koyeb
+# Configuración para PrestamosEdin
 RewriteEngine On
 
 # Configurar DirectoryIndex para evitar errores 403

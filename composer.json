@@ -4,10 +4,14 @@
     "type": "project",
     "license": "MIT",
     "require": {
-        "php": ">=8.0"
+        "php": "^8.0",
+        "ext-pdo": "*",
+        "ext-pdo_pgsql": "*",
+        "ext-json": "*",
+        "ext-mbstring": "*"
     },
     "require-dev": {
-        "php": ">=8.0"
+        "php": "^8.0"
     },
     "autoload": {
         "psr-4": {
@@ -15,8 +19,10 @@
         }
     },
     "scripts": {
-        "start": "php -S 0.0.0.0:8000 index.php",
-        "build": "echo 'Building frontend...' && cd dashboard && npm install && npm run build && cd .. && echo 'Build completed!'"
+        "post-install-cmd": [
+            "php setup_heroku_database.php"
+        ],
+        "start": "php -S 0.0.0.0:8000 index.php"
     },
     "config": {
         "optimize-autoloader": true,

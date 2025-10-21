@@ -337,264 +337,369 @@ const Archivados = () => {
   };
 
   return (
-    <div className="p-5 max-w-7xl mx-auto w-full">
-      <div className="text-center mb-8">
-        <h1 className="text-gray-800 mb-2 text-4xl font-bold">📁 Préstamos Archivados</h1>
-        <p className="text-gray-500 text-lg">Historial de préstamos completamente pagados y archivados</p>
-        <button 
-          onClick={cargarArchivados} 
-          className="mt-4 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
-          disabled={loading}
-        >
-          🔄 {loading ? 'Cargando...' : 'Actualizar'}
-        </button>
-      </div>
-
-      {/* Estadísticas */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
-        <div className="bg-white p-5 rounded-xl shadow-soft flex items-center gap-4 transition-transform duration-300 hover:-translate-y-1 border-l-4 border-green-600">
-          <div className="text-3xl">📊</div>
-          <div>
-            <h3 className="text-3xl font-bold text-gray-800 m-0">{estadisticas.totalArchivados}</h3>
-            <p className="text-gray-500 text-sm m-0">Total Archivados</p>
-          </div>
-        </div>
-        <div className="bg-white p-5 rounded-xl shadow-soft flex items-center gap-4 transition-transform duration-300 hover:-translate-y-1 border-l-4 border-green-600">
-          <div className="text-3xl">📅</div>
-          <div>
-            <h3 className="text-3xl font-bold text-gray-800 m-0">{estadisticas.totalEsteMes}</h3>
-            <p className="text-gray-500 text-sm m-0">Pagados este mes</p>
-          </div>
-        </div>
-        <div className="bg-white p-5 rounded-xl shadow-soft flex items-center gap-4 transition-transform duration-300 hover:-translate-y-1 border-l-4 border-green-600">
-          <div className="text-3xl">💰</div>
-          <div>
-            <h3 className="text-3xl font-bold text-gray-800 m-0">{formatearMoneda(estadisticas.montoRecuperado)}</h3>
-            <p className="text-gray-500 text-sm m-0">Total Recuperado</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Filtros */}
-      <div className="flex justify-between items-center mb-5 flex-wrap gap-4">
-        <div className="flex gap-3 flex-wrap">
+    <div className="min-h-screen bg-gray-50 p-2 sm:p-4 lg:p-6">
+      <div className="max-w-7xl mx-auto w-full">
+        <div className="text-center mb-6 sm:mb-8">
+          <h1 className="text-gray-800 mb-2 text-2xl sm:text-3xl lg:text-4xl font-bold">📁 Préstamos Archivados</h1>
+          <p className="text-gray-500 text-sm sm:text-base lg:text-lg">Historial de préstamos completamente pagados y archivados</p>
           <button 
-            className={`py-3 px-5 border-2 rounded-full cursor-pointer transition-all duration-300 font-medium ${
-              filtro === 'todos' 
-                ? 'bg-green-600 text-white border-green-600' 
-                : 'bg-white border-gray-200 hover:border-green-600 hover:text-green-600'
-            }`}
-            onClick={() => setFiltro('todos')}
+            onClick={cargarArchivados} 
+            className="mt-3 sm:mt-4 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-3 sm:px-4 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 text-sm sm:text-base"
+            disabled={loading}
           >
-            Todos ({archivados.length})
-          </button>
-          <button 
-            className={`py-3 px-5 border-2 rounded-full cursor-pointer transition-all duration-300 font-medium ${
-              filtro === 'este_mes' 
-                ? 'bg-green-600 text-white border-green-600' 
-                : 'bg-white border-gray-200 hover:border-green-600 hover:text-green-600'
-            }`}
-            onClick={() => setFiltro('este_mes')}
-          >
-            Este Mes ({estadisticas.totalEsteMes})
-          </button>
-          <button 
-            className={`py-3 px-5 border-2 rounded-full cursor-pointer transition-all duration-300 font-medium ${
-              filtro === 'ultimos_3_meses' 
-                ? 'bg-green-600 text-white border-green-600' 
-                : 'bg-white border-gray-200 hover:border-green-600 hover:text-green-600'
-            }`}
-            onClick={() => setFiltro('ultimos_3_meses')}
-          >
-            Últimos 3 Meses
+            🔄 {loading ? 'Cargando...' : 'Actualizar'}
           </button>
         </div>
-        <div className="text-gray-500 text-sm py-2 px-4 bg-gray-50 rounded-full">
-          Mostrando: {archivadosFiltrados.length} de {archivados.length}
-        </div>
-      </div>
 
-      {/* Tabla de Archivados */}
-      <div className="bg-white rounded-xl shadow-soft overflow-hidden mb-5">
-        {loading ? (
-          <div className="text-center py-10 text-xl text-blue-600">Cargando préstamos archivados...</div>
-        ) : archivadosFiltrados.length > 0 ? (
-          <table className="w-full border-collapse">
-            <thead>
-              <tr>
-                <th className="bg-green-600 text-white p-4 text-left font-semibold text-sm">Prestatario</th>
-                <th className="bg-green-600 text-white p-4 text-left font-semibold text-sm">DNI</th>
-                <th className="bg-green-600 text-white p-4 text-left font-semibold text-sm">Monto Inicial</th>
-                <th className="bg-green-600 text-white p-4 text-left font-semibold text-sm">Total Pagado</th>
-                <th className="bg-green-600 text-white p-4 text-left font-semibold text-sm">Fecha Inicio</th>
-                <th className="bg-green-600 text-white p-4 text-left font-semibold text-sm">Fecha Pago Final</th>
-                <th className="bg-green-600 text-white p-4 text-left font-semibold text-sm">Días desde Pago</th>
-                <th className="bg-green-600 text-white p-4 text-left font-semibold text-sm">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {archivadosFiltrados.map(prestamo => {
-                const diasDesdePago = calcularDiasDesdePago(prestamo.fecha_ultimo_pago);
-                return (
-                  <tr key={prestamo.id_prestamo} className="hover:bg-gray-50">
-                    <td className="p-3 border-b border-gray-100 font-medium">
-                      <strong>{prestamo.nombre || 'N/A'}</strong>
-                      <br />
-                      <small className="text-gray-500 text-xs">{prestamo.telefono || 'Sin teléfono'}</small>
-                    </td>
-                    <td className="p-3 border-b border-gray-100 font-mono font-semibold text-gray-800">{prestamo.dni || 'N/A'}</td>
-                    <td className="p-3 border-b border-gray-100 font-mono font-semibold text-right text-gray-800">{formatearMoneda(prestamo.monto_inicial)}</td>
-                    <td className="p-3 border-b border-gray-100 font-mono font-semibold text-right text-green-600">{formatearMoneda(prestamo.monto_total)}</td>
-                    <td className="p-3 border-b border-gray-100">{formatearFecha(prestamo.fecha_inicio)}</td>
-                    <td className="p-3 border-b border-gray-100 text-green-600 font-medium">{formatearFecha(prestamo.fecha_ultimo_pago)}</td>
-                    <td className="p-3 border-b border-gray-100">
-                      <span className={`py-1 px-2 rounded-xl text-xs font-semibold ${
-                        diasDesdePago > 90 
-                          ? 'bg-orange-100 text-orange-800' 
-                          : 'bg-green-100 text-green-800'
-                      }`}>
-                        {diasDesdePago} días
-                      </span>
-                    </td>
-                    <td className="p-3 border-b border-gray-100">
-                      <div className="flex gap-2 flex-wrap">
-                        <button 
-                          className="bg-blue-600 hover:bg-blue-700 text-white text-xs py-1 px-3 rounded-lg transition-colors duration-200"
-                          onClick={() => verDetalles(prestamo)}
-                          title="Ver detalles completos"
-                        >
-                          👁️ Ver
-                        </button>
-                        <button 
-                          className="bg-red-600 hover:bg-red-700 text-white text-xs py-1 px-3 rounded-lg transition-colors duration-200 disabled:opacity-50"
-                          onClick={() => exportarPDF(prestamo)}
-                          disabled={generandoPDF}
-                          title="Exportar a PDF"
-                        >
-                          {generandoPDF ? '⏳' : '📄'} PDF
-                        </button>
-                        <button 
-                          className="bg-green-600 hover:bg-green-700 text-white text-xs py-1 px-3 rounded-lg transition-colors duration-200"
-                          onClick={() => reabrirPrestamo(prestamo)}
-                          title="Reabrir préstamo"
-                        >
-                          🔄 Reabrir
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        ) : (
-          <div className="text-center py-16">
-            <div className="text-6xl mb-4">📁</div>
-            <h3 className="text-xl font-semibold text-gray-800 mb-2">No hay préstamos archivados</h3>
-            <p className="text-gray-500 mb-6">Los préstamos que archives desde la gestión aparecerán aquí automáticamente</p>
+        {/* Estadísticas */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-5 mb-6 sm:mb-8">
+          <div className="bg-white p-3 sm:p-4 lg:p-5 rounded-xl shadow-sm flex items-center gap-3 sm:gap-4 transition-transform duration-300 hover:-translate-y-1 border-l-4 border-green-600">
+            <div className="text-2xl sm:text-3xl">📊</div>
+            <div>
+              <h3 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-800 m-0">{estadisticas.totalArchivados}</h3>
+              <p className="text-gray-500 text-xs sm:text-sm m-0">Total Archivados</p>
+            </div>
+          </div>
+          <div className="bg-white p-3 sm:p-4 lg:p-5 rounded-xl shadow-sm flex items-center gap-3 sm:gap-4 transition-transform duration-300 hover:-translate-y-1 border-l-4 border-green-600">
+            <div className="text-2xl sm:text-3xl">📅</div>
+            <div>
+              <h3 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-800 m-0">{estadisticas.totalEsteMes}</h3>
+              <p className="text-gray-500 text-xs sm:text-sm m-0">Pagados este mes</p>
+            </div>
+          </div>
+          <div className="bg-white p-3 sm:p-4 lg:p-5 rounded-xl shadow-sm flex items-center gap-3 sm:gap-4 transition-transform duration-300 hover:-translate-y-1 border-l-4 border-green-600 sm:col-span-2 lg:col-span-1">
+            <div className="text-2xl sm:text-3xl">💰</div>
+            <div>
+              <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-800 m-0">{formatearMoneda(estadisticas.montoRecuperado)}</h3>
+              <p className="text-gray-500 text-xs sm:text-sm m-0">Total Recuperado</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Filtros */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 sm:mb-5 gap-4">
+          <div className="flex gap-2 sm:gap-3 flex-wrap w-full sm:w-auto">
             <button 
-              onClick={cargarArchivados} 
-              className="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200"
+              className={`py-2 sm:py-3 px-3 sm:px-5 border-2 rounded-full cursor-pointer transition-all duration-300 font-medium text-xs sm:text-sm ${
+                filtro === 'todos' 
+                  ? 'bg-green-600 text-white border-green-600' 
+                  : 'bg-white border-gray-200 hover:border-green-600 hover:text-green-600'
+              }`}
+              onClick={() => setFiltro('todos')}
             >
-              🔄 Reintentar carga
+              Todos ({archivados.length})
+            </button>
+            <button 
+              className={`py-2 sm:py-3 px-3 sm:px-5 border-2 rounded-full cursor-pointer transition-all duration-300 font-medium text-xs sm:text-sm ${
+                filtro === 'este_mes' 
+                  ? 'bg-green-600 text-white border-green-600' 
+                  : 'bg-white border-gray-200 hover:border-green-600 hover:text-green-600'
+              }`}
+              onClick={() => setFiltro('este_mes')}
+            >
+              Este Mes ({estadisticas.totalEsteMes})
+            </button>
+            <button 
+              className={`py-2 sm:py-3 px-3 sm:px-5 border-2 rounded-full cursor-pointer transition-all duration-300 font-medium text-xs sm:text-sm ${
+                filtro === 'ultimos_3_meses' 
+                  ? 'bg-green-600 text-white border-green-600' 
+                  : 'bg-white border-gray-200 hover:border-green-600 hover:text-green-600'
+              }`}
+              onClick={() => setFiltro('ultimos_3_meses')}
+            >
+              <span className="hidden sm:inline">Últimos 3 Meses</span>
+              <span className="sm:hidden">3 Meses</span>
             </button>
           </div>
-        )}
-      </div>
+          <div className="text-gray-500 text-xs sm:text-sm py-2 px-3 sm:px-4 bg-gray-50 rounded-full">
+            Mostrando: {archivadosFiltrados.length} de {archivados.length}
+          </div>
+        </div>
 
-      {/* Modal de Detalles */}
-      {mostrarModal && prestamoSeleccionado && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-strong max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center p-6 border-b border-gray-200">
-              <h3 className="text-xl font-bold text-gray-800">📋 Detalles del Préstamo Archivado</h3>
+        {/* Vista de tabla para desktop */}
+        <div className="hidden lg:block bg-white rounded-xl shadow-sm overflow-hidden mb-5">
+          {loading ? (
+            <div className="text-center py-10 text-xl text-blue-600">Cargando préstamos archivados...</div>
+          ) : archivadosFiltrados.length > 0 ? (
+            <table className="w-full border-collapse">
+              <thead>
+                <tr>
+                  <th className="bg-green-600 text-white p-4 text-left font-semibold text-sm">Prestatario</th>
+                  <th className="bg-green-600 text-white p-4 text-left font-semibold text-sm">DNI</th>
+                  <th className="bg-green-600 text-white p-4 text-left font-semibold text-sm">Monto Inicial</th>
+                  <th className="bg-green-600 text-white p-4 text-left font-semibold text-sm">Total Pagado</th>
+                  <th className="bg-green-600 text-white p-4 text-left font-semibold text-sm">Fecha Inicio</th>
+                  <th className="bg-green-600 text-white p-4 text-left font-semibold text-sm">Fecha Pago Final</th>
+                  <th className="bg-green-600 text-white p-4 text-left font-semibold text-sm">Días desde Pago</th>
+                  <th className="bg-green-600 text-white p-4 text-left font-semibold text-sm">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {archivadosFiltrados.map(prestamo => {
+                  const diasDesdePago = calcularDiasDesdePago(prestamo.fecha_ultimo_pago);
+                  return (
+                    <tr key={prestamo.id_prestamo} className="hover:bg-gray-50">
+                      <td className="p-3 border-b border-gray-100 font-medium">
+                        <strong>{prestamo.nombre || 'N/A'}</strong>
+                        <br />
+                        <small className="text-gray-500 text-xs">{prestamo.telefono || 'Sin teléfono'}</small>
+                      </td>
+                      <td className="p-3 border-b border-gray-100 font-mono font-semibold text-gray-800">{prestamo.dni || 'N/A'}</td>
+                      <td className="p-3 border-b border-gray-100 font-mono font-semibold text-right text-gray-800">{formatearMoneda(prestamo.monto_inicial)}</td>
+                      <td className="p-3 border-b border-gray-100 font-mono font-semibold text-right text-green-600">{formatearMoneda(prestamo.monto_total)}</td>
+                      <td className="p-3 border-b border-gray-100">{formatearFecha(prestamo.fecha_inicio)}</td>
+                      <td className="p-3 border-b border-gray-100 text-green-600 font-medium">{formatearFecha(prestamo.fecha_ultimo_pago)}</td>
+                      <td className="p-3 border-b border-gray-100">
+                        <span className={`py-1 px-2 rounded-xl text-xs font-semibold ${
+                          diasDesdePago > 90 
+                            ? 'bg-orange-100 text-orange-800' 
+                            : 'bg-green-100 text-green-800'
+                        }`}>
+                          {diasDesdePago} días
+                        </span>
+                      </td>
+                      <td className="p-3 border-b border-gray-100">
+                        <div className="flex gap-2 flex-wrap">
+                          <button 
+                            className="bg-blue-600 hover:bg-blue-700 text-white text-xs py-1 px-3 rounded-lg transition-colors duration-200"
+                            onClick={() => verDetalles(prestamo)}
+                            title="Ver detalles completos"
+                          >
+                            👁️ Ver
+                          </button>
+                          <button 
+                            className="bg-red-600 hover:bg-red-700 text-white text-xs py-1 px-3 rounded-lg transition-colors duration-200 disabled:opacity-50"
+                            onClick={() => exportarPDF(prestamo)}
+                            disabled={generandoPDF}
+                            title="Exportar a PDF"
+                          >
+                            {generandoPDF ? '⏳' : '📄'} PDF
+                          </button>
+                          <button 
+                            className="bg-green-600 hover:bg-green-700 text-white text-xs py-1 px-3 rounded-lg transition-colors duration-200"
+                            onClick={() => reabrirPrestamo(prestamo)}
+                            title="Reabrir préstamo"
+                          >
+                            🔄 Reabrir
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          ) : (
+            <div className="text-center py-16">
+              <div className="text-6xl mb-4">📁</div>
+              <h3 className="text-xl font-semibold text-gray-800 mb-2">No hay préstamos archivados</h3>
+              <p className="text-gray-500 mb-6">Los préstamos que archives desde la gestión aparecerán aquí automáticamente</p>
               <button 
-                onClick={() => setMostrarModal(false)}
-                className="text-gray-500 hover:text-gray-700 text-2xl font-bold"
+                onClick={cargarArchivados} 
+                className="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200"
               >
-                ✕
+                🔄 Reintentar carga
               </button>
             </div>
-            <div className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Prestatario:</label>
-                    <span className="text-gray-900">{prestamoSeleccionado.nombre}</span>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">DNI:</label>
-                    <span className="text-gray-900">{prestamoSeleccionado.dni}</span>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono:</label>
-                    <span className="text-gray-900">{prestamoSeleccionado.telefono}</span>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Monto Inicial:</label>
-                    <span className="text-gray-900">{formatearMoneda(prestamoSeleccionado.monto_inicial)}</span>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Tasa de Interés:</label>
-                    <span className="text-gray-900">{prestamoSeleccionado.tasa_interes}%</span>
+          )}
+        </div>
+
+        {/* Vista de tarjetas para móvil y tablet */}
+        <div className="lg:hidden space-y-3 sm:space-y-4 mb-5">
+          {loading ? (
+            <div className="bg-white rounded-xl shadow-sm p-6 text-center">
+              <div className="text-lg sm:text-xl text-blue-600">Cargando préstamos archivados...</div>
+            </div>
+          ) : archivadosFiltrados.length > 0 ? (
+            archivadosFiltrados.map(prestamo => {
+              const diasDesdePago = calcularDiasDesdePago(prestamo.fecha_ultimo_pago);
+              return (
+                <div key={prestamo.id_prestamo} className="bg-white rounded-xl shadow-sm overflow-hidden">
+                  <div className="p-3 sm:p-4">
+                    {/* Header de la tarjeta */}
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-sm sm:text-base font-semibold text-gray-900 truncate">{prestamo.nombre || 'N/A'}</h3>
+                        <p className="text-xs sm:text-sm text-gray-500">{prestamo.telefono || 'Sin teléfono'}</p>
+                        <p className="text-xs sm:text-sm text-gray-600 font-mono">{prestamo.dni || 'N/A'}</p>
+                      </div>
+                      <div className="flex items-center gap-2 ml-3">
+                        <span className={`py-1 px-2 rounded-xl text-xs font-semibold ${
+                          diasDesdePago > 90 
+                            ? 'bg-orange-100 text-orange-800' 
+                            : 'bg-green-100 text-green-800'
+                        }`}>
+                          {diasDesdePago} días
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Información principal */}
+                    <div className="grid grid-cols-2 gap-3 mb-3">
+                      <div>
+                        <div className="text-xs text-gray-500">Monto Inicial</div>
+                        <div className="text-sm sm:text-base font-semibold text-gray-900">{formatearMoneda(prestamo.monto_inicial)}</div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-gray-500">Total Pagado</div>
+                        <div className="text-sm sm:text-base font-semibold text-green-600">{formatearMoneda(prestamo.monto_total)}</div>
+                      </div>
+                    </div>
+
+                    {/* Fechas */}
+                    <div className="grid grid-cols-2 gap-3 mb-3 text-xs sm:text-sm">
+                      <div>
+                        <div className="text-gray-500">Fecha Inicio</div>
+                        <div className="font-medium text-gray-900">{formatearFecha(prestamo.fecha_inicio)}</div>
+                      </div>
+                      <div>
+                        <div className="text-gray-500">Fecha Pago Final</div>
+                        <div className="font-medium text-green-600">{formatearFecha(prestamo.fecha_ultimo_pago)}</div>
+                      </div>
+                    </div>
+
+                    {/* Estado */}
+                    <div className="mb-3">
+                      <span className="inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        ✅ Completamente Pagado
+                      </span>
+                    </div>
+
+                    {/* Acciones */}
+                    <div className="flex gap-2 flex-wrap">
+                      <button 
+                        className="bg-blue-600 hover:bg-blue-700 text-white text-xs py-2 px-3 rounded-lg transition-colors duration-200 flex-1 sm:flex-none"
+                        onClick={() => verDetalles(prestamo)}
+                      >
+                        👁️ Ver
+                      </button>
+                      <button 
+                        className="bg-red-600 hover:bg-red-700 text-white text-xs py-2 px-3 rounded-lg transition-colors duration-200 disabled:opacity-50 flex-1 sm:flex-none"
+                        onClick={() => exportarPDF(prestamo)}
+                        disabled={generandoPDF}
+                      >
+                        {generandoPDF ? '⏳' : '📄'} PDF
+                      </button>
+                      <button 
+                        className="bg-green-600 hover:bg-green-700 text-white text-xs py-2 px-3 rounded-lg transition-colors duration-200 flex-1 sm:flex-none"
+                        onClick={() => reabrirPrestamo(prestamo)}
+                      >
+                        🔄 Reabrir
+                      </button>
+                    </div>
                   </div>
                 </div>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Total Pagado:</label>
-                    <span className="text-green-600 font-semibold">{formatearMoneda(prestamoSeleccionado.monto_total)}</span>
+              );
+            })
+          ) : (
+            <div className="bg-white rounded-xl shadow-sm p-6 sm:p-8 text-center">
+              <div className="text-4xl sm:text-6xl mb-4">📁</div>
+              <h3 className="text-lg sm:text-xl font-semibold text-gray-800 mb-2">No hay préstamos archivados</h3>
+              <p className="text-gray-500 mb-4 sm:mb-6 text-sm sm:text-base">Los préstamos que archives desde la gestión aparecerán aquí automáticamente</p>
+              <button 
+                onClick={cargarArchivados} 
+                className="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 text-sm sm:text-base"
+              >
+                🔄 Reintentar carga
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Modal de Detalles */}
+        {mostrarModal && prestamoSeleccionado && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
+            <div className="bg-white rounded-xl shadow-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="flex justify-between items-center p-4 sm:p-6 border-b border-gray-200">
+                <h3 className="text-lg sm:text-xl font-bold text-gray-800">📋 Detalles del Préstamo Archivado</h3>
+                <button 
+                  onClick={() => setMostrarModal(false)}
+                  className="text-gray-500 hover:text-gray-700 text-xl sm:text-2xl font-bold"
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="p-4 sm:p-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+                  <div className="space-y-3 sm:space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Prestatario:</label>
+                      <span className="text-gray-900 text-sm sm:text-base">{prestamoSeleccionado.nombre}</span>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">DNI:</label>
+                      <span className="text-gray-900 text-sm sm:text-base">{prestamoSeleccionado.dni}</span>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono:</label>
+                      <span className="text-gray-900 text-sm sm:text-base">{prestamoSeleccionado.telefono}</span>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Monto Inicial:</label>
+                      <span className="text-gray-900 text-sm sm:text-base">{formatearMoneda(prestamoSeleccionado.monto_inicial)}</span>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Tasa de Interés:</label>
+                      <span className="text-gray-900 text-sm sm:text-base">{prestamoSeleccionado.tasa_interes}%</span>
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Fecha de Inicio:</label>
-                    <span className="text-gray-900">{formatearFecha(prestamoSeleccionado.fecha_inicio)}</span>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Fecha de Pago Final:</label>
-                    <span className="text-gray-900">{formatearFecha(prestamoSeleccionado.fecha_ultimo_pago)}</span>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Período:</label>
-                    <span className="text-gray-900">{prestamoSeleccionado.cantidad_periodo} {prestamoSeleccionado.tipo_periodo}</span>
-                  </div>
-                  <div className="col-span-full">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Estado:</label>
-                    <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
-                      ✅ Completamente Pagado y Archivado
-                    </span>
+                  <div className="space-y-3 sm:space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Total Pagado:</label>
+                      <span className="text-green-600 font-semibold text-sm sm:text-base">{formatearMoneda(prestamoSeleccionado.monto_total)}</span>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Fecha de Inicio:</label>
+                      <span className="text-gray-900 text-sm sm:text-base">{formatearFecha(prestamoSeleccionado.fecha_inicio)}</span>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Fecha de Pago Final:</label>
+                      <span className="text-gray-900 text-sm sm:text-base">{formatearFecha(prestamoSeleccionado.fecha_ultimo_pago)}</span>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Período:</label>
+                      <span className="text-gray-900 text-sm sm:text-base">{prestamoSeleccionado.cantidad_periodo} {prestamoSeleccionado.tipo_periodo}</span>
+                    </div>
+                    <div className="col-span-full">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Estado:</label>
+                      <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                        ✅ Completamente Pagado y Archivado
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-            <div className="flex flex-col sm:flex-row justify-end gap-3 p-6 border-t border-gray-200">
-              <button 
-                className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-2 px-4 rounded-lg transition-colors duration-200"
-                onClick={() => setMostrarModal(false)}
-              >
-                Cerrar
-              </button>
-              <button 
-                className="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 disabled:opacity-50"
-                onClick={() => {
-                  setMostrarModal(false);
-                  exportarPDF(prestamoSeleccionado);
-                }}
-                disabled={generandoPDF}
-              >
-                {generandoPDF ? '⏳' : '📄'} Exportar PDF
-              </button>
-              <button 
-                className="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200"
-                onClick={() => {
-                  setMostrarModal(false);
-                  reabrirPrestamo(prestamoSeleccionado);
-                }}
-              >
-                🔄 Reabrir Préstamo
-              </button>
+              <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 p-4 sm:p-6 border-t border-gray-200">
+                <button 
+                  className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-2 px-4 rounded-lg transition-colors duration-200 text-sm sm:text-base"
+                  onClick={() => setMostrarModal(false)}
+                >
+                  Cerrar
+                </button>
+                <button 
+                  className="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 disabled:opacity-50 text-sm sm:text-base"
+                  onClick={() => {
+                    setMostrarModal(false);
+                    exportarPDF(prestamoSeleccionado);
+                  }}
+                  disabled={generandoPDF}
+                >
+                  {generandoPDF ? '⏳' : '📄'} Exportar PDF
+                </button>
+                <button 
+                  className="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 text-sm sm:text-base"
+                  onClick={() => {
+                    setMostrarModal(false);
+                    reabrirPrestamo(prestamoSeleccionado);
+                  }}
+                >
+                  🔄 Reabrir Préstamo
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };

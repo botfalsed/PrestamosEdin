@@ -88,11 +88,11 @@ const Configuracion = () => {
   };
 
   return (
-    <div className="p-8 max-w-4xl mx-auto w-full">
-      <h2 className="text-3xl font-bold text-gray-800 mb-8 text-center">⚙️ Configuración del Sistema</h2>
+    <div className="p-3 sm:p-4 lg:p-8 max-w-4xl mx-auto w-full">
+      <h2 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-6 sm:mb-8 text-center">⚙️ Configuración del Sistema</h2>
 
       {mensaje && (
-        <div className={`p-4 rounded-lg mb-6 font-medium ${
+        <div className={`p-3 sm:p-4 rounded-lg mb-4 sm:mb-6 font-medium text-sm sm:text-base ${
           tipoMensaje === 'success' 
             ? 'bg-green-100 text-green-800 border border-green-200' 
             : 'bg-red-100 text-red-800 border border-red-200'
@@ -102,35 +102,35 @@ const Configuracion = () => {
       )}
 
       {/* SECCIÓN: ACTUALIZAR ADMIN ACTUAL */}
-      <div className="bg-white p-6 rounded-2xl mb-6 shadow-[0_4px_12px_rgba(0,0,0,0.08)] border border-gray-200">
-        <h3 className="text-blue-600 mb-5 text-xl font-semibold border-b-2 border-gray-200 pb-3">👤 Actualizar Mis Credenciales</h3>
-        <form onSubmit={actualizarAdminActual} className="flex flex-col gap-5">
+      <div className="bg-white p-4 sm:p-5 lg:p-6 rounded-2xl mb-4 sm:mb-6 shadow-[0_4px_12px_rgba(0,0,0,0.08)] border border-gray-200">
+        <h3 className="text-blue-600 mb-4 sm:mb-5 text-lg sm:text-xl font-semibold border-b-2 border-gray-200 pb-3">👤 Actualizar Mis Credenciales</h3>
+        <form onSubmit={actualizarAdminActual} className="flex flex-col gap-4 sm:gap-5">
           <div className="flex flex-col gap-2">
-            <label className="font-semibold text-gray-700 text-sm">Usuario Actual:</label>
+            <label className="font-semibold text-gray-700 text-xs sm:text-sm">Usuario Actual:</label>
             <input
               type="text"
               value={adminActual.usuario}
               onChange={(e) => setAdminActual({ ...adminActual, usuario: e.target.value })}
               placeholder="Nombre de usuario"
               required
-              className="py-3 px-4 border-2 border-gray-200 rounded-lg bg-gray-50 text-gray-700 text-base transition-all duration-300 focus:outline-none focus:border-blue-500 focus:shadow-[0_0_0_3px_rgba(0,123,255,0.1)]"
+              className="py-2 sm:py-3 px-3 sm:px-4 border-2 border-gray-200 rounded-lg bg-gray-50 text-gray-700 text-sm sm:text-base transition-all duration-300 focus:outline-none focus:border-blue-500 focus:shadow-[0_0_0_3px_rgba(0,123,255,0.1)]"
             />
           </div>
           <div className="flex flex-col gap-2">
-            <label className="font-semibold text-gray-700 text-sm">Nueva Contraseña:</label>
+            <label className="font-semibold text-gray-700 text-xs sm:text-sm">Nueva Contraseña:</label>
             <input
               type="password"
               value={adminActual.password}
               onChange={(e) => setAdminActual({ ...adminActual, password: e.target.value })}
               placeholder="Nueva contraseña"
               required
-              className="py-3 px-4 border-2 border-gray-200 rounded-lg bg-gray-50 text-gray-700 text-base transition-all duration-300 focus:outline-none focus:border-blue-500 focus:shadow-[0_0_0_3px_rgba(0,123,255,0.1)]"
+              className="py-2 sm:py-3 px-3 sm:px-4 border-2 border-gray-200 rounded-lg bg-gray-50 text-gray-700 text-sm sm:text-base transition-all duration-300 focus:outline-none focus:border-blue-500 focus:shadow-[0_0_0_3px_rgba(0,123,255,0.1)]"
             />
           </div>
           <button 
             type="submit" 
             disabled={loading} 
-            className={`py-3 px-6 border-none rounded-lg text-base font-semibold cursor-pointer transition-all duration-300 self-start ${
+            className={`py-2 sm:py-3 px-4 sm:px-6 border-none rounded-lg text-sm sm:text-base font-semibold cursor-pointer transition-all duration-300 self-start ${
               loading 
                 ? 'bg-gray-500 cursor-not-allowed transform-none' 
                 : 'bg-blue-600 text-white hover:bg-blue-700 hover:-translate-y-0.5'
@@ -142,35 +142,35 @@ const Configuracion = () => {
       </div>
 
       {/* SECCIÓN: CREAR NUEVO ADMIN */}
-      <div className="bg-white p-6 rounded-2xl mb-6 shadow-[0_4px_12px_rgba(0,0,0,0.08)] border border-gray-200">
-        <h3 className="text-blue-600 mb-5 text-xl font-semibold border-b-2 border-gray-200 pb-3">➕ Crear Nuevo Administrador</h3>
-        <form onSubmit={crearNuevoAdmin} className="flex flex-col gap-5">
+      <div className="bg-white p-4 sm:p-5 lg:p-6 rounded-2xl mb-4 sm:mb-6 shadow-[0_4px_12px_rgba(0,0,0,0.08)] border border-gray-200">
+        <h3 className="text-blue-600 mb-4 sm:mb-5 text-lg sm:text-xl font-semibold border-b-2 border-gray-200 pb-3">➕ Crear Nuevo Administrador</h3>
+        <form onSubmit={crearNuevoAdmin} className="flex flex-col gap-4 sm:gap-5">
           <div className="flex flex-col gap-2">
-            <label className="font-semibold text-gray-700 text-sm">Usuario:</label>
+            <label className="font-semibold text-gray-700 text-xs sm:text-sm">Usuario:</label>
             <input
               type="text"
               value={nuevoAdmin.usuario}
               onChange={(e) => setNuevoAdmin({ ...nuevoAdmin, usuario: e.target.value })}
               placeholder="Nombre de usuario"
               required
-              className="py-3 px-4 border-2 border-gray-200 rounded-lg bg-gray-50 text-gray-700 text-base transition-all duration-300 focus:outline-none focus:border-blue-500 focus:shadow-[0_0_0_3px_rgba(0,123,255,0.1)]"
+              className="py-2 sm:py-3 px-3 sm:px-4 border-2 border-gray-200 rounded-lg bg-gray-50 text-gray-700 text-sm sm:text-base transition-all duration-300 focus:outline-none focus:border-blue-500 focus:shadow-[0_0_0_3px_rgba(0,123,255,0.1)]"
             />
           </div>
           <div className="flex flex-col gap-2">
-            <label className="font-semibold text-gray-700 text-sm">Contraseña:</label>
+            <label className="font-semibold text-gray-700 text-xs sm:text-sm">Contraseña:</label>
             <input
               type="password"
               value={nuevoAdmin.contraseña}
               onChange={(e) => setNuevoAdmin({ ...nuevoAdmin, contraseña: e.target.value })}
               placeholder="Contraseña"
               required
-              className="py-3 px-4 border-2 border-gray-200 rounded-lg bg-gray-50 text-gray-700 text-base transition-all duration-300 focus:outline-none focus:border-blue-500 focus:shadow-[0_0_0_3px_rgba(0,123,255,0.1)]"
+              className="py-2 sm:py-3 px-3 sm:px-4 border-2 border-gray-200 rounded-lg bg-gray-50 text-gray-700 text-sm sm:text-base transition-all duration-300 focus:outline-none focus:border-blue-500 focus:shadow-[0_0_0_3px_rgba(0,123,255,0.1)]"
             />
           </div>
           <button 
             type="submit" 
             disabled={loading} 
-            className={`py-3 px-6 border-none rounded-lg text-base font-semibold cursor-pointer transition-all duration-300 self-start ${
+            className={`py-2 sm:py-3 px-4 sm:px-6 border-none rounded-lg text-sm sm:text-base font-semibold cursor-pointer transition-all duration-300 self-start ${
               loading 
                 ? 'bg-gray-500 cursor-not-allowed transform-none' 
                 : 'bg-green-600 text-white hover:bg-green-700 hover:-translate-y-0.5'
@@ -182,13 +182,13 @@ const Configuracion = () => {
       </div>
 
       {/* SECCIÓN: INFORMACIÓN DEL SISTEMA */}
-      <div className="bg-white p-6 rounded-2xl shadow-[0_4px_12px_rgba(0,0,0,0.08)] border border-gray-200">
-        <h3 className="text-blue-600 mb-5 text-xl font-semibold border-b-2 border-gray-200 pb-3">ℹ️ Información del Sistema</h3>
-        <div className="bg-gray-50 p-5 rounded-lg border-l-4 border-blue-500">
-          <p className="my-2 text-sm text-gray-600"><strong>Base de Datos:</strong> PostgreSQL</p>
-          <p className="my-2 text-sm text-gray-600"><strong>Tabla de Admins:</strong> admin (id_admin, usuario, contraseña)</p>
-          <p className="my-2 text-sm text-gray-600"><strong>Contraseñas:</strong> Almacenadas en texto plano</p>
-          <p className="my-2 text-sm text-gray-600"><strong>Usuarios registrados:</strong> 1 administrador principal</p>
+      <div className="bg-white p-4 sm:p-5 lg:p-6 rounded-2xl shadow-[0_4px_12px_rgba(0,0,0,0.08)] border border-gray-200">
+        <h3 className="text-blue-600 mb-4 sm:mb-5 text-lg sm:text-xl font-semibold border-b-2 border-gray-200 pb-3">ℹ️ Información del Sistema</h3>
+        <div className="bg-gray-50 p-4 sm:p-5 rounded-lg border-l-4 border-blue-500">
+          <p className="my-1 sm:my-2 text-xs sm:text-sm text-gray-600"><strong>Base de Datos:</strong> PostgreSQL</p>
+          <p className="my-1 sm:my-2 text-xs sm:text-sm text-gray-600"><strong>Tabla de Admins:</strong> admin (id_admin, usuario, contraseña)</p>
+          <p className="my-1 sm:my-2 text-xs sm:text-sm text-gray-600"><strong>Contraseñas:</strong> Almacenadas en texto plano</p>
+          <p className="my-1 sm:my-2 text-xs sm:text-sm text-gray-600"><strong>Usuarios registrados:</strong> 1 administrador principal</p>
         </div>
       </div>
     </div>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { BrowserRouter as Router, Route, Routes, Navigate, useLocation } from 'react-router-dom';
-import { NavigationProvider } from './context/NavigationContext';
+import { NavigationProvider, useNavigation } from './context/NavigationContext';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import Inicio from './components/inicio';
@@ -26,6 +26,7 @@ import {
 
 const HeaderWithData = ({ alertasCount, onAlertasClick }) => {
   const location = useLocation();
+  const { toggleSidebar } = useNavigation();
   
   const getSectionName = () => {
     const path = location.pathname;
@@ -39,6 +40,7 @@ const HeaderWithData = ({ alertasCount, onAlertasClick }) => {
       userName="Administrador"
       alertasCount={alertasCount}
       onAlertasClick={onAlertasClick}
+      onToggleSidebar={toggleSidebar}
     />
   );
 };

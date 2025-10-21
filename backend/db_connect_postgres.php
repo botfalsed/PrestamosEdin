@@ -1,6 +1,6 @@
 <?php
 // Configuración de conexión PostgreSQL
-// Base de datos: PrestamosEdin
+// Base de datos: PrestamosEdin (LOCAL)
 // Migración desde MySQL a PostgreSQL
 
 $host = 'localhost';

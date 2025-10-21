@@ -46,6 +46,11 @@ export default function RootLayout() {
           <Stack>
             <Stack.Screen name="index" options={{ headerShown: false }} />
             <Stack.Screen name="ArchivadosScreen" options={{ headerShown: false }} />
+            <Stack.Screen name="DashboardWebView" options={{ 
+              headerShown: true, 
+              title: 'Dashboard Web',
+              headerBackTitle: 'Volver'
+            }} />
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
             <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
           </Stack>
