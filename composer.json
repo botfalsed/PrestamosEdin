@@ -4,23 +4,27 @@
     "type": "project",
     "license": "MIT",
     "require": {
-        "php": ">=8.0"
+        "php": ">=8.0",
+        "ext-pdo": "*",
+        "ext-pgsql": "*",
+        "ext-json": "*",
+        "ext-mbstring": "*"
     },
-    "require-dev": {
-        "php": ">=8.0"
-    },
+    "require-dev": {},
     "autoload": {
         "psr-4": {
             "PrestamosEdin\\": "backend/"
         }
     },
     "scripts": {
-        "start": "php -S 0.0.0.0:8000 index.php",
-        "build": "echo 'Building frontend...' && cd dashboard && npm install && npm run build && cd .. && echo 'Build completed!'"
+        "start": "php -S 0.0.0.0:8000 index.php"
     },
     "config": {
         "optimize-autoloader": true,
         "preferred-install": "dist",
-        "sort-packages": true
+        "sort-packages": true,
+        "platform": {
+            "php": "8.0"
+        }
     }
 }
