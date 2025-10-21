@@ -32,25 +32,25 @@ if (strpos($path, '/api') === 0 || strpos($path, 'api_postgres.php') !== false) 
 } else {
     // Para el dashboard y otras rutas, servir el frontend
     if (strpos($path, '/dashboard') === 0 || $path === '/') {
-        if (file_exists(__DIR__ . '/dashboard/index.html')) {
+        if (file_exists(__DIR__ . '/build/index.html')) {
             // Configurar headers para HTML
             header('Content-Type: text/html; charset=utf-8');
             header('Access-Control-Allow-Origin: *');
             
             // Servir el archivo HTML del dashboard
-            readfile(__DIR__ . '/dashboard/index.html');
+            readfile(__DIR__ . '/build/index.html');
         } else {
             // Si no hay dashboard, mostrar mensaje de error
             header('Content-Type: application/json');
             http_response_code(404);
             echo json_encode([
-                'error' => 'Dashboard not found',
+                'error' => 'Dashboard not built. Please run npm run build in the dashboard directory.',
                 'message' => 'Dashboard file is missing'
             ]);
         }
     } else {
         // Para archivos estáticos (CSS, JS, imágenes)
-        $file_path = __DIR__ . '/dashboard' . $path;
+        $file_path = __DIR__ . '/build' . $path;
         if (file_exists($file_path) && is_file($file_path)) {
             // Determinar el tipo MIME
             $mime_types = [
