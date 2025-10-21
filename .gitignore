@@ -1,5 +1,5 @@
 # Build outputs
-build/
+# build/  # Commented out to allow build directory in production
 dist/
 *.log
 npm-debug.log*
