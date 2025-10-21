@@ -8,6 +8,18 @@
 $request_uri = $_SERVER['REQUEST_URI'];
 $path = parse_url($request_uri, PHP_URL_PATH);
 
+// Health check endpoint para Railway
+if ($path === '/health' || ($path === '/' && isset($_SERVER['HTTP_USER_AGENT']) && strpos($_SERVER['HTTP_USER_AGENT'], 'Railway') !== false)) {
+    header('Content-Type: application/json');
+    http_response_code(200);
+    echo json_encode([
+        'status' => 'healthy',
+        'message' => 'PrestamosEdin API is running',
+        'timestamp' => date('Y-m-d H:i:s')
+    ]);
+    exit();
+}
+
 // Si es una petición a la API, configurar headers JSON y procesar
 if (strpos($path, '/api') === 0 || strpos($path, 'api_postgres.php') !== false) {
     // Configuración para API
