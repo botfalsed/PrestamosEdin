@@ -33,13 +33,17 @@ const Login = ({ onLoginSuccess }) => {
     setMessage('');
 
     try {
-      const response = await axios.post('http://localhost:8080/api_postgres.php?action=login', {
+      const response = await axios.post('/api_postgres.php?action=login', {
         usuario: credentials.usuario,
         password: credentials.password
       });
 
       if (response.data.success) {
         localStorage.setItem('isAuthenticated', 'true');
+        localStorage.setItem('user', JSON.stringify({
+          usuario: credentials.usuario,
+          id: response.data.user?.id || 1
+        }));
         localStorage.setItem('usuario', credentials.usuario);
         
         setMessage('¡Inicio de sesión exitoso!');

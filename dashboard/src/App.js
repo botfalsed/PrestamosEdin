@@ -187,6 +187,14 @@ const App = () => {
       const esAutenticado = auth === 'true' && !!user && !!user.usuario;
 
       console.log('Auth check:', { auth, user, esAutenticado });
+      
+      // Si no hay autenticación válida, redirigir al login inmediatamente
+      if (!esAutenticado) {
+        setIsAuthenticated(false);
+        setMounted(true);
+        return;
+      }
+      
       setIsAuthenticated(esAutenticado);
       
       if (esAutenticado) {
